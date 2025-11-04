@@ -36,7 +36,7 @@ typedef struct YouTubeVideoInfo {
 
     // 상태 정보
     string privacyStatus;      // 공개 비공개 동영상
-    bool embeddable = true;    // 임베드 가능 여부
+    bool embeddable = true;    // 임베드 가능 여부(다른 매체에서 사용할수 있는 영상인가)
 
     string fetchTimestamp;     // 이 데이터를 API로 초기화 시각(타임 스탬프, 우리가 만들어줘야함)
 }Video;

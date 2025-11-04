@@ -1,4 +1,4 @@
-#pragma once
+#pragma once//헤더파일 완전모음
 #define _CRT_SECURE_NO_WARNINGS
 #include <cctype>
 #include <cerrno>
