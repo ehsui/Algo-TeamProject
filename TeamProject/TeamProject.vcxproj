@@ -133,12 +133,14 @@
     <ClCompile Include="Headers.h" />
     <ClCompile Include="Heap.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="OnlineInsert.cpp" />
     <ClCompile Include="Utility.cpp" />
     <ClCompile Include="Video.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BasicSelect.h" />
     <ClInclude Include="Heap.h" />
+    <ClInclude Include="RankingInterface.h" />
     <ClInclude Include="Score.h" />
     <ClInclude Include="Utility.h" />
   </ItemGroup>
