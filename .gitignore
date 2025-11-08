@@ -361,3 +361,20 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# API 키 및 민감한 설정 파일
+config.json
+
+# Build output
+build/
+
+# Visual Studio caches
+.vs/
+*.user
+*.suo
+
+# CMake intermediate files
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+*.vcxproj*
