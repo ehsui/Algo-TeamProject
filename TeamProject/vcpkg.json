@@ -1,0 +1,10 @@
+{
+    "name": "defalut",
+    "version": "0.1.0",
+    "dependencies": [
+        "curl",
+        "nlohmann-json",
+        "cpr",
+        "sqlite3"
+    ]
+}
