@@ -1,37 +1,43 @@
 #pragma once
-#include "Utility.h"
+#include "Utility.h" // Video 구조체 사용을 위해 필요
+#include <vector>
+#include <algorithm>
 
-class AVLNode {
-public:
-    Video data; //노드가 저장할 동영상 데이터
-    int height; //해당 노드의 높이
+// AVL 트리 노드 정의
+struct AVLNode {
+    Video data;
+    int height;
     AVLNode* left;
     AVLNode* right;
-
-    explicit AVLNode(const Video& v) : data(v), height(1), left(nullptr), right(nullptr) {}
+    AVLNode(const Video& v) : data(v), height(1), left(nullptr), right(nullptr) {}
 };
 
+// AVL 트리 클래스 선언
 class AVLTree {
+private:
+    AVLNode* root;
+
+    // 보조 함수들
+    int height(AVLNode* node);
+    int getBalance(AVLNode* node);
+    void updateHeight(AVLNode* node);
+    
+    // 회전 함수
+    AVLNode* rightRotate(AVLNode* y);
+    AVLNode* leftRotate(AVLNode* x);
+
+    // 삽입 및 순회
+    AVLNode* insert(AVLNode* node, const Video& v);
+    void inorder(AVLNode* node, std::vector<Video>& list);
+    void destroy(AVLNode* node);
+
+    // [중요] 우선순위 비교 (점수 높은 게 우선)
+    bool isMorePopular(const Video& a, const Video& b);
+
 public:
     AVLTree();
     ~AVLTree();
 
-    void insert(const Video& v); //동영상 삽입
-    AVLNode* find(const std::string& videoId); //videoId로 동영상 검색
-    void inorder() const; //중위 순회
-
-private:
-    AVLNode* root;
-
-    int height(AVLNode* node);
-    void updateHeight(AVLNode* node);
-    int getBalanceFactor(AVLNode* node);
-
-    AVLNode* rotateRight(AVLNode* y); 
-    AVLNode* rotateLeft(AVLNode* x); 
-
-    AVLNode* insert(AVLNode* node, const Video& v);
-    AVLNode* find(AVLNode* node, const std::string& videoId);
-    void destroyTree(AVLNode* node);
-    void inorder(AVLNode* node) const;
+    void insert(const Video& v);
+    std::vector<Video> getSortedList(); // 정렬된 결과 반환
 };
