@@ -1,4 +1,4 @@
-#pragma once//Çì´õÆÄÀÏ ¿ÏÀü¸ğÀ½
+ï»¿#pragma once//í—¤ë”íŒŒì¼ ì™„ì „ëª¨ìŒ
 #define _CRT_SECURE_NO_WARNINGS
 #include <cctype>
 #include <cerrno>

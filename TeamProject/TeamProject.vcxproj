@@ -76,6 +76,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -90,6 +92,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -104,6 +108,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -118,6 +124,8 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -131,18 +139,36 @@
     <ClCompile Include="BasicSort.cpp" />
     <ClCompile Include="BasicSort.h" />
     <ClCompile Include="Headers.h" />
-    <ClCompile Include="Heap.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="OnlineInsert.cpp" />
+    <ClCompile Include="RankEngine.cpp" />
+    <ClCompile Include="Score.cpp" />
+    <ClCompile Include="SortingAlgorithm.cpp" />
     <ClCompile Include="Utility.cpp" />
     <ClCompile Include="Video.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Adapter\DummyDataProvider.h" />
+    <ClInclude Include="Adapter\IDataProvider.h" />
+    <ClInclude Include="Adapter\YouTubeAdapter.h" />
+    <ClInclude Include="Api\YouTubeApiTypes.h" />
     <ClInclude Include="BasicSelect.h" />
-    <ClInclude Include="Heap.h" />
-    <ClInclude Include="RankingInterface.h" />
+    <ClInclude Include="BasicSelect.hpp" />
+    <ClInclude Include="BasicSort.hpp" />
+    <ClInclude Include="Domain\VideoMetrics.h" />
+    <ClInclude Include="Engine\RankingEngine.h" />
+    <ClInclude Include="Heap.hpp" />
+    <ClInclude Include="MultiMetric.h" />
+    <ClInclude Include="RankEngine.h" />
     <ClInclude Include="Score.h" />
+    <ClInclude Include="Scoring\ScoreCalculator.h" />
+    <ClInclude Include="Sorting\SortingStrategy.hpp" />
+    <ClInclude Include="UI\ConsoleUI.h" />
+    <ClInclude Include="UI\MenuUI.h" />
+    <ClInclude Include="UI\RankingUI.h" />
+    <ClInclude Include="UI\UITemplates.h" />
+    <ClInclude Include="UI\YouTubeRankUI.h" />
     <ClInclude Include="Utility.h" />
+    <ClInclude Include="Video.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

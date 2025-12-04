@@ -1,95 +1,15 @@
-#include "BasicSelect.h"
-#include "Utility.h"
+ï»¿/**
+ * @file BasicSelect.cpp
+ * @brief í…œí”Œë¦¿ ì„ íƒ ì•Œê³ ë¦¬ì¦˜ (ë¹ˆ íŒŒì¼)
+ * 
+ * ëª¨ë“  êµ¬í˜„ì€ BasicSelect.hpp í—¤ë” íŒŒì¼ì— ìˆìŠµë‹ˆë‹¤.
+ * í…œí”Œë¦¿ í•¨ìˆ˜ëŠ” í—¤ë”ì— êµ¬í˜„ì´ ìˆì–´ì•¼ í•˜ê¸° ë•Œë¬¸ì…ë‹ˆë‹¤.
+ * 
+ * ì´ íŒŒì¼ì€ í”„ë¡œì íŠ¸ ë¹Œë“œ ì„¤ì • í˜¸í™˜ì„±ì„ ìœ„í•´ ìœ ì§€ë©ë‹ˆë‹¤.
+ */
 
-using namespace std;
+#include "BasicSelect.hpp"
+#include "Video.h"
 
-Score sequentialSelect(vector <Score>&p, Heap& topk, int top) {
-	
-	int size = p.size();
-	for (int i = 0; i < top; i++)
-	{
-		topk.push(p[i]);
-	}
-	for (int i = top; i < size; i++)
-	{
-		if (topk.top() < p[i]) { topk.pop(); topk.push(p[i]); }
-	}
-	return topk.top();
-}
-// Ä¿Æ®¶óÀÎÀ» ¹İÈ¯ÇÏ°í ±×°úÁ¤¿¡¼­ ÈüÀ» ÀÚ¿¬½º·´°Ô ±¸¼ºÇÏ´Â ÇÔ¼ö
-
-Score quickSelect(vector<Score>& p, int top, int left, int right) {
-	if (left == right) return p[left];
-	int idx = partition_d(p, left, right);
-	if (top < idx) {
-		return quickSelect(p, top, left, idx - 1);
-	}
-	else {
-		return quickSelect(p, top, idx, right);
-	}
-}
-Score quickSelect(vector<Score>& p,int top) {
-	if (p.empty()) throw out_of_range("empty vector");
-	return quickSelect(p, top, 0, (int)p.size() - 1);
-}// ÀÌÁø Å½»ö°ú ´Ù¸¥Á¡Àº ¹«¾ùÀÏ±î.. ÇÏÇÏ -> ÇÇ¹ş ¼±ÅÃ ´Ù¸£°Ô ÇÏ±â.
-// ÀüÃ³¸® ÇÔ¼ö
-Score binaryselect(vector<Score>& p,vector<Score>& toplist, int top) {
-	if (p.empty()) throw out_of_range("empty vector");
-	if (top < 0 || top >= (int)p.size()) throw out_of_range("k out of range");
-	auto result = minmax_element(p.begin(), p.end());
-	auto mn_it = result.first;
-	auto mx_it = result.second;
-	return binaryselect(p, toplist, top, *mn_it, *mx_it);
-}
-
-Score binaryselect(vector<Score>& p, vector<Score>& result, int top, Score minv, Score maxv) {
-    // (¼±ÅÃ) Àç»ç¿ë ½Ã Á¤¸®
-    result.clear();
-    result.reserve(top + 1);      
-    vector<Score> cur = p;
-    vector<Score> big, small;
-    int remain = top + 1;         
-    Score lo = minv, hi = maxv;
-
-    while (lo < hi) {
-        Score mid = (Score)(((long long)lo + hi + 1) / 2);
-
-        big.clear(); small.clear();
-
-        
-        for (Score x : cur) {
-            if (x >= mid) big.push_back(x);
-            else          small.push_back(x);
-        }
-
-        if ((int)big.size() >= remain) {
-            
-            lo = mid;
-            cur.swap(big);
-        }
-        else {
-            // mid Å­: bigÀº ÀüºÎ È®Á¤ Æ÷ÇÔ
-            for (Score x : big) result.push_back(x);
-            remain -= (int)big.size();     
-
-            hi = mid - 1;
-            cur.swap(small);
-        }
-    }
-
-    //ºÎÁ·ÇÏ¸é lo·Î Ã¤¿ì±â
-    if ((int)result.size() < top + 1) {
-        for (Score x : p) if (x == lo) {
-            result.push_back(x);
-            if ((int)result.size() == top + 1) break;
-        }
-    }
-
-    if ((int)result.size() > top + 1) {
-        nth_element(result.begin(), result.begin() + top, result.end(), greater<Score>());
-        result.resize(top + 1);
-    }
-
-    return lo;  // Ä¿Æ®¶óÀÎ
-}
+// í•„ìš” ì‹œ ëª…ì‹œì  ì¸ìŠ¤í„´ìŠ¤í™” ì¶”ê°€
 

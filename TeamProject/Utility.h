@@ -1,46 +1,59 @@
-#pragma once
-#include "Headers.h"
-#include "Heap.h"
+ï»¿#pragma once
+/**
+ * @file Utility.h
+ * @brief ê³µìš© ìœ í‹¸ë¦¬í‹° í•¨ìˆ˜ ë° ìƒìˆ˜
+ * 
+ * [í¬í•¨ ë‚´ìš©]
+ * - UI ì¶œë ¥ ë„ìš°ë¯¸
+ * - ê³µí†µ ì•Œê³ ë¦¬ì¦˜ í•¨ìˆ˜ (partition ë“±)
+ * - íƒ€ì… ì •ì˜
+ */
+
+// í•„ìš”í•œ í—¤ë”ë§Œ í¬í•¨
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+
+#include "Heap.hpp"
 #include "Score.h"
 
 using namespace std;
 
-typedef struct YouTubeVideoInfo {
-   //±âº» Á¤º¸
-    string videoId;            // ¿µ»ó ID
-    string channelId;          // ¾÷·Î´õ Ã¤³Î ID
-    string channelTitle;       // ¾÷·Î´õ Ã¤³Î Á¦¸ñ
-    string title;              // ¿µ»ó Á¦¸ñ
-    string description;        // ¿µ»ó ¼³¸í (±æ ¼ö ÀÖÀ½)
-    string categoryId;         // ¿µ»ó Ä«Å×°í¸® ID
-    vector<string> tags;       // ÅÂ±× ¸®½ºÆ® (¿É¼Ç)
-    string publishedAt;        // ¾÷·Îµå ÀÏ½Ã
-    Score score;
+// ============================================================================
+// UI ìœ í‹¸ë¦¬í‹°
+// ============================================================================
 
-    // ½æ³×ÀÏ Á¤º¸ (ÇÊ¿äÇÏ´Ù¸é È®Àå °¡´É)
-    string thumbnailUrl;       // ±âº» ½æ³×ÀÏ URL
+/// êµ¬ë¶„ì„  ë¬¸ìì—´
+inline const string CUTLINE = "------------------------------------";
 
-    // Åë°è ¼öÄ¡ º¯È­·® °è»êÀº µû·Î
-    long long viewCount = 0;
-    long long likeCount = 0;
-    long long commentCount = 0;
-    //´Ù¸¥ º¯¼öµé Ãß°¡ ÇÒ ÇÊ¿ä ÀÖÀ½
-    // »ó¼¼ Á¤º¸
-    int durationSeconds = 0;   // ¿µ»ó ±æÀÌ ÃÊ ´ÜÀ§·Î º¯È¯ÇØ¼­ ÀúÀå
-    string definition;         // hd,sd µî
-    string dimension;          // 2d,3d
-    bool caption = false;      // Ä¸¼Ç(ÀÚ¸·) Á¸Àç ¿©ºÎ
-    bool licensedContent = false;  // ¶óÀÌ¼±½º ¿©ºÎ
-    // regionRestriction´Â ´Ü¼øÈ÷ ¡°Â÷´ÜµÈ ±¹°¡ ¼ö¡± Á¤µµ·Î ÀúÀåÇØµµ µÊ
-    vector<string> regionBlocked;    // Â÷´ÜµÈ ±¹°¡ ÄÚµå ¸®½ºÆ® 
+/// êµ¬ë¶„ì„  ì¶œë ¥
+inline void print_cutline() {
+    cout << CUTLINE << endl;
+}
 
-    // »óÅÂ Á¤º¸
-    string privacyStatus;      // °ø°³ ºñ°ø°³ µ¿¿µ»ó
-    bool embeddable = true;    // ÀÓº£µå °¡´É ¿©ºÎ(´Ù¸¥ ¸ÅÃ¼¿¡¼­ »ç¿ëÇÒ¼ö ÀÖ´Â ¿µ»óÀÎ°¡)
+/// ì œëª© ìˆëŠ” êµ¬ë¶„ì„  ì¶œë ¥
+inline void print_section(const string& title) {
+    cout << "\n===== " << title << " =====" << endl;
+}
 
-    string fetchTimestamp;     // ÀÌ µ¥ÀÌÅÍ¸¦ API·Î ÃÊ±âÈ­ ½Ã°¢(Å¸ÀÓ ½ºÅÆÇÁ, ¿ì¸®°¡ ¸¸µé¾îÁà¾ßÇÔ)
-}Video;
+// ============================================================================
+// ì•Œê³ ë¦¬ì¦˜ ìœ í‹¸ë¦¬í‹°
+// ============================================================================
 
-int partition_d(vector<Score>& p, int left, int right);//Èü Á¤·Ä Èü ¼±ÅÃ ÇÒ¶§ »ç¿ëµÉ ÆÄÆ¼¼Ç ÇÔ¼ö Áßº¹µÇ¼­ ÀÌ°÷¿¡ Á¤ÀÇ
-inline void swapValueheap(Heap& det, vector<Score>& src, int i);//ÀÌ µÎ ÇÔ¼ö´Â ¾µ¸ğ°¡ ¾øÀ½ 
-void copyValue(const Heap heap, int i, vector<Score>& q, int j);// ¹«½Ã ÇØµµµÊ
+/**
+ * @brief Hoare íŒŒí‹°ì…˜ í•¨ìˆ˜
+ * 
+ * Quick Sortì™€ Quick Selectì—ì„œ ì‚¬ìš©ë˜ëŠ” íŒŒí‹°ì…˜ í•¨ìˆ˜ì…ë‹ˆë‹¤.
+ * ì¤‘ì•™ê°’ì„ í”¼ë²—ìœ¼ë¡œ ì‚¬ìš©í•˜ì—¬ worst caseë¥¼ ë°©ì§€í•©ë‹ˆë‹¤.
+ * 
+ * @param p íŒŒí‹°ì…˜í•  ë²¡í„°
+ * @param left ì‹œì‘ ì¸ë±ìŠ¤
+ * @param right ë ì¸ë±ìŠ¤
+ * @return íŒŒí‹°ì…˜ ê²½ê³„ ì¸ë±ìŠ¤
+ * 
+ * [ì‹œê°„ë³µì¡ë„] O(n)
+ * [ì •ë ¬ ë°©í–¥] ë‚´ë¦¼ì°¨ìˆœ (í° ê°’ì´ ì•ìœ¼ë¡œ)
+ */
+int partition_d(vector<Score>& p, int left, int right);
+
