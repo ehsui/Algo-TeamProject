@@ -15,6 +15,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="AVLTree.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
     <ClCompile Include="BasicSelect.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -111,6 +114,12 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="BasicSelect.hpp">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="AVLTree.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="AVLTree.hpp">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

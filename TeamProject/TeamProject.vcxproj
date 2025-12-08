@@ -135,6 +135,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AVLTree.cpp" />
     <ClCompile Include="BasicSelect.cpp" />
     <ClCompile Include="BasicSort.cpp" />
     <ClCompile Include="BasicSort.h" />
@@ -151,6 +152,8 @@
     <ClInclude Include="Adapter\IDataProvider.h" />
     <ClInclude Include="Adapter\YouTubeAdapter.h" />
     <ClInclude Include="Api\YouTubeApiTypes.h" />
+    <ClInclude Include="AVLTree.h" />
+    <ClInclude Include="AVLTree.hpp" />
     <ClInclude Include="BasicSelect.h" />
     <ClInclude Include="BasicSelect.hpp" />
     <ClInclude Include="BasicSort.hpp" />
