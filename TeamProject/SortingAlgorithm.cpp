@@ -151,9 +151,47 @@ void RankEngine::build_onlineInsert() {
 }
 
 void RankEngine::build_AVLTree() {
-    // AVL 트리 기반 정렬은 별도 구현 필요
-    // 현재는 std::sort로 대체
-    std::sort(cur.begin(), cur.end());
+    /**
+     * AVL 트리 기반 Top-K 랭킹
+     * 
+     * [Order Statistics AVL Tree]
+     * - 각 노드에 서브트리 크기 저장 → O(log n)에 k번째 요소 조회
+     * - ID → 노드 포인터 맵 → O(1)에 노드 접근
+     * - 삽입/삭제/수정 모두 O(log n)
+     * 
+     * 시간복잡도: O(n log n) 빌드 + O(k) Top-K 추출
+     */
+    
+    if (cur.empty() || P.k <= 0) return;
+    
+    // 비교자: 높은 점수 우선 (내림차순)
+    KeyComparator comp = [](const key& a, const key& b) {
+        if (a.Value != b.Value) {
+            return a.Value > b.Value;  // 높은 점수가 앞으로
+        }
+        return a.title < b.title;      // 동점 시 제목순
+    };
+    
+    // 키 추출자: videoId 반환
+    KeyExtractor extractor = [](const key& k) -> std::string {
+        return k.videoId;
+    };
+    
+    // 새 트리로 초기화
+    avlTree = RankAVLTree<key, KeyComparator, KeyExtractor>(comp, extractor);
+    
+    // 모든 요소 삽입 O(n log n)
+    for (const auto& item : cur) {
+        avlTree.insert(item);
+    }
+    
+    // Top-K 추출 O(k)
+    int k = std::min(P.k, static_cast<int>(avlTree.size()));
+    vector<key> topK = avlTree.topK(k);
+    cur = std::move(topK);
+    
+    // 위치 맵 구축 (호환성)
+    rebuildPosMap();
 }
 
 void RankEngine::build_MultiMetric() {
@@ -235,6 +273,74 @@ int RankEngine::insertSorted(const key& item) {
 }
 
 // ============================================================================
+// Lazy Delete (빈자리 마킹) 유틸리티
+// ============================================================================
+
+void RankEngine::markDeleted(int idx) {
+    // 특정 위치를 빈자리로 마킹
+    // videoId를 빈 문자열로 설정하여 삭제 표시
+    if (idx < 0 || idx >= static_cast<int>(cur.size())) return;
+    
+    pos.erase(cur[idx].videoId);  // 위치 맵에서 제거
+    cur[idx].videoId = "";        // 삭제 표시
+    cur[idx].Value = -1;          // 최저 점수로 설정 (맨 뒤로 밀림)
+    emptySlots.push_back(idx);    // 빈자리 목록에 추가
+}
+
+bool RankEngine::isDeleted(int idx) const {
+    // 빈자리 여부 확인
+    if (idx < 0 || idx >= static_cast<int>(cur.size())) return true;
+    return cur[idx].videoId.empty();
+}
+
+int RankEngine::placeInEmptySlot(const key& item) {
+    // 빈자리에 새 요소 배치 후 이웃 비교로 위치 조정
+    
+    if (emptySlots.empty()) {
+        // 빈자리 없으면 맨 끝에 추가 후 shiftUp
+        cur.push_back(item);
+        int idx = static_cast<int>(cur.size()) - 1;
+        pos[item.videoId] = idx;
+        shiftUp(idx);
+        return pos[item.videoId];
+    }
+    
+    // 빈자리 중 하나 사용
+    int slotIdx = emptySlots.back();
+    emptySlots.pop_back();
+    
+    // 빈자리에 배치
+    cur[slotIdx] = item;
+    pos[item.videoId] = slotIdx;
+    
+    // 이웃 비교로 올바른 위치로 이동
+    adjustNeighbor(slotIdx);
+    
+    return pos[item.videoId];
+}
+
+void RankEngine::compactArray() {
+    // 배열 압축: 빈자리(삭제된 요소) 제거
+    // 빈자리가 많이 쌓였을 때 호출
+    
+    if (emptySlots.empty()) return;
+    
+    // 삭제되지 않은 요소만 남기기
+    vector<key> compacted;
+    compacted.reserve(cur.size() - emptySlots.size());
+    
+    for (const key& k : cur) {
+        if (!k.videoId.empty()) {  // 삭제되지 않은 것만
+            compacted.push_back(k);
+        }
+    }
+    
+    cur = std::move(compacted);
+    emptySlots.clear();
+    rebuildPosMap();
+}
+
+// ============================================================================
 // 통합 갱신 메서드
 // ============================================================================
 
@@ -296,11 +402,76 @@ void RankEngine::refresh_selectThenSort(vector<Video>& newData) {
 
 void RankEngine::refresh_AVLTree(vector<Video>& newData) {
     /**
-     * AVLTree 갱신: AVL 트리 재구축
-     * 시간복잡도: O(n log n)
+     * AVLTree 갱신: 증분 업데이트 (Augmented AVL with ID Map)
+     * 
+     * [전략]
+     * 1. 새 데이터를 ID 맵으로 변환
+     * 2. 기존 트리 순회:
+     *    - 새 데이터에 있으면 → 점수 비교 후 필요시 update() O(log n)
+     *    - 새 데이터에 없으면 → 삭제 목록에 추가
+     * 3. 삭제 목록의 항목 삭제 O(m log n)
+     * 4. 새 데이터 중 기존에 없는 것 삽입 O(m log n)
+     * 
+     * 시간복잡도: O(m log n), m = 변경된 항목 수
+     * - 전체 재빌드 O(n log n)보다 효율적 (m << n인 경우)
      */
-    setData(cur, newData);
-    build_AVLTree();
+    
+    if (newData.empty()) return;
+    
+    // 새 데이터를 ID → key 맵으로 변환
+    unordered_map<string, key> newDataMap;
+    for (auto& v : newData) {
+        v.calculateScore();
+        newDataMap[v.videoId] = v.makekey();
+    }
+    
+    // 트리가 비어있으면 초기 빌드
+    if (avlTree.empty()) {
+        for (const auto& pair : newDataMap) {
+            avlTree.insert(pair.second);
+        }
+    } else {
+        // 1. 삭제할 항목 & 업데이트할 항목 수집
+        vector<string> toRemove;
+        vector<pair<string, key>> toUpdate;
+        
+        avlTree.inorder([&](const key& item) {
+            auto it = newDataMap.find(item.videoId);
+            if (it == newDataMap.end()) {
+                // 새 데이터에 없음 → 삭제 대상
+                toRemove.push_back(item.videoId);
+            } else {
+                // 새 데이터에 있음 → 점수 변경 확인
+                if (item.Value != it->second.Value) {
+                    toUpdate.push_back({item.videoId, it->second});
+                }
+                // 처리 완료한 항목 표시 (나중에 삽입 대상에서 제외)
+                newDataMap.erase(it);
+            }
+        });
+        
+        // 2. 삭제 수행 O(m log n)
+        for (const string& id : toRemove) {
+            avlTree.removeById(id);
+        }
+        
+        // 3. 업데이트 수행 O(m log n)
+        for (const auto& pair : toUpdate) {
+            avlTree.update(pair.first, pair.second);
+        }
+        
+        // 4. 새 항목 삽입 O(m log n)
+        // newDataMap에 남아있는 것 = 기존에 없던 새 영상
+        for (const auto& pair : newDataMap) {
+            avlTree.insert(pair.second);
+        }
+    }
+    
+    // Top-K 추출 O(k)
+    int k = std::min(P.k, static_cast<int>(avlTree.size()));
+    cur = avlTree.topK(k);
+    
+    // 위치 맵 갱신
     rebuildPosMap();
 }
 
@@ -327,18 +498,19 @@ void RankEngine::refresh_MultiMetric(vector<Video>& newData) {
 
 void RankEngine::refresh_onlineInsert(vector<Video>& newData) {
     /**
-     * OnlineInsert 갱신: 부분 갱신 (효율적)
+     * OnlineInsert 갱신: Lazy Delete 방식 (효율적)
      * 
-     * [개요]
+     * [개요 - 빈자리 마킹 방식]
      * 기존 정렬된 배열(cur)에서:
      * 1. 갱신된 영상: 점수 업데이트 후 이웃 비교로 위치 조정
-     * 2. 사라진 영상: 제거
-     * 3. 새 영상: 이진 탐색으로 올바른 위치에 삽입
+     * 2. 사라진 영상: 빈자리로 마킹 (실제 삭제 안 함)
+     * 3. 새 영상: 빈자리에 배치 후 이웃 비교로 위치 조정
      * 
      * [시간 복잡도]
      * - 기존 영상 업데이트: O(m × d) (m: 변경 수, d: 평균 이동 거리)
-     * - 새 영상 삽입: O(n × log k)
-     * - 전체: O(m × d + n log k), 평균적으로 전체 재정렬보다 빠름
+     * - 사라진 영상 마킹: O(1) per item
+     * - 새 영상 배치: O(d) per item (이웃 비교)
+     * - 전체: O(m × d), 배열 이동 없이 효율적
      */
     
     if (cur.empty()) {
@@ -348,6 +520,9 @@ void RankEngine::refresh_onlineInsert(vector<Video>& newData) {
         return;
     }
     
+    // 빈자리 목록 초기화
+    emptySlots.clear();
+    
     // newData의 videoId를 빠르게 조회하기 위한 맵
     // videoId → (새 점수, 처리 여부)
     std::unordered_map<string, std::pair<Score, bool>> newDataMap;
@@ -356,9 +531,10 @@ void RankEngine::refresh_onlineInsert(vector<Video>& newData) {
     }
     
     // === 1단계: 기존 영상 처리 ===
-    vector<int> removedIndices;  // 사라진 영상 위치들
-    
     for (int i = 0; i < static_cast<int>(cur.size()); ++i) {
+        // 이미 삭제된 슬롯은 건너뛰기
+        if (isDeleted(i)) continue;
+        
         auto it = newDataMap.find(cur[i].videoId);
         
         if (it != newDataMap.end()) {
@@ -371,13 +547,16 @@ void RankEngine::refresh_onlineInsert(vector<Video>& newData) {
                 adjustNeighbor(i);  // 이웃과 비교하여 위치 조정
                 
                 // 위치가 변경되었을 수 있으므로 i 재조정
-                i = pos[cur[i].videoId];
+                auto posIt = pos.find(cur[i].videoId);
+                if (posIt != pos.end()) {
+                    i = posIt->second;
+                }
             }
             
             it->second.second = true;  // 처리됨 표시
         } else {
-            // 기존 영상이 갱신 데이터에 없음 → 사라진 영상
-            removedIndices.push_back(i);
+            // 기존 영상이 갱신 데이터에 없음 → 빈자리로 마킹
+            markDeleted(i);
         }
     }
     
@@ -391,28 +570,24 @@ void RankEngine::refresh_onlineInsert(vector<Video>& newData) {
         }
     }
     
-    // === 3단계: 사라진 영상 제거 및 새 영상 삽입 ===
-    if (!removedIndices.empty()) {
-        // 뒤에서부터 제거 (인덱스 꼬임 방지)
-        std::sort(removedIndices.rbegin(), removedIndices.rend());
-        for (int idx : removedIndices) {
-            pos.erase(cur[idx].videoId);
-            cur.erase(cur.begin() + idx);
-        }
-        // 위치 맵 재구축
-        rebuildPosMap();
-    }
-    
-    // 새 영상 삽입 (이진 탐색으로 올바른 위치에)
+    // === 3단계: 새 영상을 빈자리에 배치 ===
     for (const key& item : newItems) {
-        insertSorted(item);
+        placeInEmptySlot(item);  // 빈자리에 배치 + 이웃 비교로 위치 조정
     }
     
-    // === 4단계: Top-K 유지 ===
+    // === 4단계: 빈자리 정리 (남은 빈자리가 있으면) ===
+    // 빈자리가 많이 남아있으면 압축
+    if (!emptySlots.empty()) {
+        compactArray();
+    }
+    
+    // === 5단계: Top-K 유지 ===
     if (static_cast<int>(cur.size()) > P.k) {
         // 넘치는 부분 제거
         for (size_t i = P.k; i < cur.size(); ++i) {
-            pos.erase(cur[i].videoId);
+            if (!cur[i].videoId.empty()) {
+                pos.erase(cur[i].videoId);
+            }
         }
         cur.resize(P.k);
     }

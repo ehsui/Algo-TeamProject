@@ -20,6 +20,7 @@
 #include "Utility.h"
 #include "Video.h"
 #include "MultiMetric.h"
+#include "AVLTree.hpp"
 #include <unordered_map>
 #include <chrono>
 
@@ -142,6 +143,11 @@ private:
     vector<MultiMetricKey> prevMulti;     // 직전 다중 지표 랭킹
     unordered_map<string, int> pos;       // videoId → index 매핑
     
+    // === AVL 트리 (AVLTree 모드용) ===
+    using KeyComparator = std::function<bool(const key&, const key&)>;
+    using KeyExtractor = std::function<std::string(const key&)>;
+    RankAVLTree<key, KeyComparator, KeyExtractor> avlTree;  // Order Statistics AVL 트리
+    
     // === CSV 데이터 저장 ===
     vector<Video> srcData;                // 초기 데이터 (빌드용)
     vector<Video> refreshData;            // 갱신 데이터 (두 시점용)
@@ -186,4 +192,28 @@ private:
      * @brief 직전 랭킹 저장
      */
     void savePrevRanking();
+    
+    // === Lazy Delete (빈자리 마킹) 유틸리티 ===
+    vector<int> emptySlots;           // 빈자리 인덱스 목록
+    
+    /**
+     * @brief 특정 위치를 빈자리로 마킹 (실제 삭제 안 함)
+     */
+    void markDeleted(int idx);
+    
+    /**
+     * @brief 빈자리 여부 확인
+     */
+    bool isDeleted(int idx) const;
+    
+    /**
+     * @brief 빈자리에 새 요소 배치 후 위치 조정
+     * @return 최종 위치
+     */
+    int placeInEmptySlot(const key& item);
+    
+    /**
+     * @brief 배열 압축 (빈자리 제거) - 필요시 호출
+     */
+    void compactArray();
 };
