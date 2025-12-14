@@ -1,301 +1,465 @@
 ﻿/**
  * @file main.cpp
- * @brief YouTube 실시간 랭킹 시스템 메인 진입점
- * 
- * [프로젝트 구조]
- * 
- * ┌─────────────────┐     ┌─────────────────┐
- * │   YouTube API   │     │   Dummy Data    │
- * │    Response     │     │    Provider     │
- * └────────┬────────┘     └────────┬────────┘
- *          │                       │
- *          └───────────┬───────────┘
- *                      ▼
- *          ┌─────────────────────┐
- *          │   IDataProvider     │  ← 데이터 소스 추상화
- *          │    (Interface)      │
- *          └──────────┬──────────┘
- *                     │
- *          ┌──────────▼──────────┐
- *          │   YouTubeAdapter    │  ← API 응답 → 도메인 모델 변환
- *          └──────────┬──────────┘
- *                     │
- *          ┌──────────▼──────────┐
- *          │    VideoMetrics     │  ← 내부 도메인 모델
- *          │   (Domain Model)    │
- *          └──────────┬──────────┘
- *                     │
- *          ┌──────────▼──────────┐
- *          │   ScoreCalculator   │  ← 점수 계산 (전략 패턴)
- *          └──────────┬──────────┘
- *                     │
- *          ┌──────────▼──────────┐
- *          │   SortingStrategy   │  ← 정렬 알고리즘 (템플릿)
- *          └──────────┬──────────┘
- *                     │
- *          ┌──────────▼──────────┐
- *          │   RankingEngine     │  ← 통합 랭킹 엔진
- *          └──────────┬──────────┘
- *                     │
- *                     ▼
- *          [  Ranking Results  ]
+ * @brief YouTube Ranking System Main Entry Point
  */
 
 #include <iostream>
 #include <iomanip>
 #include <chrono>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 
-// 새로운 아키텍처 헤더
-#include "Domain/VideoMetrics.h"
-#include "Adapter/DummyDataProvider.h"
-#include "Scoring/ScoreCalculator.h"
-#include "Sorting/SortingStrategy.hpp"
-#include "Engine/RankingEngine.h"
+// UI Module
+#include "UI/YouTubeRankUI.h"
+
+// Main Ranking Engine (5 algorithms)
+#include "RankEngine.h"
+
+// Benchmark History
+#include "BenchmarkHistory.h"
 
 using namespace std;
 
 // ============================================================================
-// 유틸리티 함수
+// DataCollector Path & API Key
 // ============================================================================
 
-void printSeparator(const string& title = "") {
-    cout << "\n";
-    if (!title.empty()) {
-        cout << "===== " << title << " =====" << endl;
+const string DATA_COLLECTOR_PATH = "C:/Users/chois/source/repos/TeamProject/DataCollector/out/build/x64-Debug/YouTubeDataCollector.exe";
+const string API_KEY_CONFIG_PATH = "C:/Users/chois/source/repos/TeamProject/DataCollector/config.txt";
+
+/**
+ * @brief Load API key from config file
+ */
+string loadApiKey() {
+    ifstream file(API_KEY_CONFIG_PATH);
+    if (!file.is_open()) {
+        return "";
+    }
+    
+    string key;
+    getline(file, key);
+    
+    // Trim whitespace
+    size_t start = key.find_first_not_of(" \t\r\n");
+    size_t end = key.find_last_not_of(" \t\r\n");
+    if (start == string::npos) return "";
+    
+    return key.substr(start, end - start + 1);
+}
+
+bool callDataCollector() {
+    UI::showMessage("Calling DataCollector...", UI::MessageType::Info);
+    
+    // Check if executable exists
+    ifstream exeCheck(DATA_COLLECTOR_PATH);
+    if (!exeCheck.is_open()) {
+        UI::showMessage("DataCollector not found!", UI::MessageType::Error);
+        cout << "  Path: " << DATA_COLLECTOR_PATH << endl;
+        return false;
+    }
+    exeCheck.close();
+    
+    // Load API key
+    string apiKey = loadApiKey();
+    if (apiKey.empty()) {
+        UI::showMessage("API key not found!", UI::MessageType::Error);
+        cout << "  Config path: " << API_KEY_CONFIG_PATH << endl;
+        cout << "  Please add your YouTube API key to config.txt" << endl;
+        return false;
+    }
+    
+    // Show masked API key
+    cout << "\n  API Key: " << apiKey.substr(0, 8) << "..." 
+         << apiKey.substr(apiKey.length() - 4) << endl;
+    
+    // Build command with API key (Windows requires special quoting)
+    // Format: cmd /c "full_path" arg1 arg2
+    string command = "cmd /c \"\"" + DATA_COLLECTOR_PATH + "\" " + apiKey + " --collect\"";
+    
+    cout << "  Executing: DataCollector --collect\n";
+    cout << "  " << string(50, '-') << endl;
+    
+    int result = system(command.c_str());
+    
+    cout << "  " << string(50, '-') << endl;
+    
+    if (result == 0) {
+        UI::showMessage("DataCollector completed successfully!", UI::MessageType::Success);
+        return true;
     } else {
-        cout << "======================================" << endl;
+        UI::showMessage("DataCollector failed (code: " + to_string(result) + ")", UI::MessageType::Error);
+        return false;
     }
 }
 
-void printMenu() {
-    printSeparator("YouTube 실시간 랭킹 시스템");
-    cout << "1. 전체 랭킹 조회" << endl;
-    cout << "2. 정렬 알고리즘 변경" << endl;
-    cout << "3. 점수 계산 전략 변경" << endl;
-    cout << "4. 랭킹 새로고침" << endl;
-    cout << "5. 정렬 알고리즘 벤치마크" << endl;
-    cout << "6. 특정 영상 순위 조회" << endl;
-    cout << "0. 종료" << endl;
-    printSeparator();
-}
-
-void printSortAlgorithms() {
-    cout << "\n[정렬 알고리즘 선택]" << endl;
-    cout << "1. Selection Sort  (O(n²))" << endl;
-    cout << "2. Insertion Sort  (O(n²))" << endl;
-    cout << "3. Bubble Sort     (O(n²))" << endl;
-    cout << "4. Quick Sort      (O(n log n) avg)" << endl;
-    cout << "5. Merge Sort      (O(n log n))" << endl;
-    cout << "6. Shell Sort      (O(n^1.5))" << endl;
-    cout << "7. Heap Sort       (O(n log n))" << endl;
-    cout << "8. std::sort       (O(n log n))" << endl;
-}
-
-void printScoreStrategies() {
-    cout << "\n[점수 계산 전략 선택]" << endl;
-    cout << "1. View Weighted     (조회수 중심)" << endl;
-    cout << "2. Engagement Based  (참여도 중심)" << endl;
-    cout << "3. Trending          (트렌딩/최근성)" << endl;
-    cout << "4. Balanced          (균형)" << endl;
-}
-
 // ============================================================================
-// 벤치마크 함수
+// Dummy Data Generator
 // ============================================================================
 
-void runBenchmark(const vector<Domain::VideoMetrics>& originalData) {
-    printSeparator("정렬 알고리즘 벤치마크");
+vector<Video> generateDummyData(int count) {
+    if (count < 1) count = 1;
+    if (count > 2000) count = 2000;
     
-    vector<pair<Sorting::Algorithm, string>> algorithms = {
-        {Sorting::Algorithm::SelectionSort, "Selection Sort"},
-        {Sorting::Algorithm::InsertionSort, "Insertion Sort"},
-        {Sorting::Algorithm::BubbleSort, "Bubble Sort"},
-        {Sorting::Algorithm::QuickSort, "Quick Sort"},
-        {Sorting::Algorithm::MergeSort, "Merge Sort"},
-        {Sorting::Algorithm::ShellSort, "Shell Sort"},
-        {Sorting::Algorithm::HeapSort, "Heap Sort"},
-        {Sorting::Algorithm::StdSort, "std::sort"}
+    vector<Video> videos;
+    videos.reserve(count);
+    
+    vector<string> titlePrefixes = {
+        "Amazing", "Ultimate", "Best", "Top", "Epic", 
+        "Incredible", "Awesome", "Must Watch", "Trending", "Viral"
     };
     
-    cout << "\n데이터 크기: " << originalData.size() << "개" << endl;
-    cout << "--------------------------------------" << endl;
-    cout << left << setw(20) << "알고리즘" << setw(15) << "소요 시간" << endl;
-    cout << "--------------------------------------" << endl;
+    vector<string> titleSuffixes = {
+        "Compilation", "Tutorial", "Review", "Highlights", "Guide",
+        "Tips & Tricks", "Challenge", "Reaction", "Vlog", "Unboxing"
+    };
     
-    for (const auto& [algo, name] : algorithms) {
-        // 데이터 복사
-        vector<Domain::VideoMetrics> data = originalData;
+    vector<string> channelNames = {
+        "TechMaster", "GameZone", "MusicHub", "CookingPro", "TravelWorld",
+        "FitnessFan", "ComedyKing", "NewsDaily", "ScienceNow", "ArtCreative",
+        "MovieBuff", "SportsFan", "LifeHacks", "BeautyTips", "PetLovers"
+    };
+    
+    srand(static_cast<unsigned>(time(nullptr)));
+    
+    for (int i = 0; i < count; i++) {
+        Video v;
+        v.videoId = "vid_" + to_string(i + 1) + "_" + to_string(rand() % 10000);
+        v.title = titlePrefixes[rand() % titlePrefixes.size()] + " " +
+                  titleSuffixes[rand() % titleSuffixes.size()] + " #" + 
+                  to_string(i + 1);
         
-        // 시간 측정
-        auto start = chrono::high_resolution_clock::now();
+        int channelIdx = rand() % channelNames.size();
+        v.channelId = "ch_" + to_string(channelIdx);
+        v.channelTitle = channelNames[channelIdx];
+        v.fetchTimestamp = "2024-01-15 12:00:00";
         
-        Sorting::sort(data, algo,
-            [](const Domain::VideoMetrics& a, const Domain::VideoMetrics& b) {
-                return a.score > b.score;
-            });
+        v.viewCount = (rand() % 10000 + 1) * 1000;
+        double likeRatio = (rand() % 30 + 20) / 1000.0;
+        v.likeCount = static_cast<int64_t>(v.viewCount * likeRatio);
+        double commentRatio = (rand() % 4 + 1) / 1000.0;
+        v.commentCount = static_cast<int64_t>(v.viewCount * commentRatio);
         
-        auto end = chrono::high_resolution_clock::now();
-        auto duration = chrono::duration_cast<chrono::microseconds>(end - start);
+        v.calculateScore();
         
-        cout << left << setw(20) << name 
-             << setw(10) << duration.count() << " μs" << endl;
+        videos.push_back(v);
     }
     
-    cout << "--------------------------------------" << endl;
+    return videos;
+}
+
+pair<vector<Video>, vector<Video>> generateDummyDataWithRefresh(int count) {
+    if (count < 1) count = 1;
+    if (count > 2000) count = 2000;
+    
+    vector<Video> initial = generateDummyData(count);
+    vector<Video> refreshed;
+    refreshed.reserve(count);
+    
+    srand(static_cast<unsigned>(time(nullptr)) + 1);
+    
+    for (const auto& v : initial) {
+        Video updated = v;
+        updated.fetchTimestamp = "2024-01-15 18:00:00";
+        
+        double viewIncrease = 1.0 + (rand() % 15 + 5) / 100.0;
+        updated.viewCount = static_cast<int64_t>(v.viewCount * viewIncrease);
+        
+        double likeRatio = (rand() % 30 + 20) / 1000.0;
+        updated.likeCount = static_cast<int64_t>(updated.viewCount * likeRatio);
+        
+        double commentRatio = (rand() % 4 + 1) / 1000.0;
+        updated.commentCount = static_cast<int64_t>(updated.viewCount * commentRatio);
+        
+        updated.calculateScore();
+        
+        refreshed.push_back(updated);
+    }
+    
+    return {initial, refreshed};
 }
 
 // ============================================================================
-// 메인 함수
+// Benchmark History Display
+// ============================================================================
+
+void showBenchmarkHistory() {
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 60;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        ALGORITHM BENCHMARK HISTORY", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("  Compare performance of 5 ranking algorithms", W) << "\n";
+    cout << UI::boxRow("  Records are saved each time you run ranking.", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    // Get benchmark history
+    BenchmarkHistory& history = BenchmarkHistory::getInstance();
+    
+    if (history.isEmpty()) {
+        cout << "\n";
+        cout << "  +----------------------------------------------------------+\n";
+        cout << "  |                                                          |\n";
+        cout << "  |     No benchmark records yet!                            |\n";
+        cout << "  |                                                          |\n";
+        cout << "  |     Run some ranking operations first:                   |\n";
+        cout << "  |       [1] Real Data Mode                                 |\n";
+        cout << "  |       [2] Dummy Data Mode                                |\n";
+        cout << "  |                                                          |\n";
+        cout << "  |     Each ranking operation will be recorded here.        |\n";
+        cout << "  |                                                          |\n";
+        cout << "  +----------------------------------------------------------+\n";
+    } else {
+        history.printHistory();
+    }
+    
+    cout << "\n";
+    cout << UI::boxTop(45) << "\n";
+    cout << UI::boxRow("  [1] Clear all records", 45) << "\n";
+    cout << UI::boxRow("  [0] Back to main menu", 45) << "\n";
+    cout << UI::boxBottom(45) << "\n";
+    
+    UI::printPrompt("Select");
+    int choice;
+    cin >> choice;
+    
+    if (choice == 1) {
+        history.clear();
+        UI::showMessage("All records cleared!", UI::MessageType::Success);
+        std::this_thread::sleep_for(std::chrono::milliseconds(800));
+    }
+}
+
+// ============================================================================
+// Real Data Mode (CSV)
+// ============================================================================
+
+const string DEFAULT_CSV_DIR = "C:/Users/chois/source/repos/TeamProject/data/";
+
+void runRealDataMode() {
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 60;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("  Real Data Mode (CSV from YouTube API)", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    string latestPath = DEFAULT_CSV_DIR + "youtube_latest.csv";
+    string allPath = DEFAULT_CSV_DIR + "youtube_all.csv";
+    
+    ifstream testFile(latestPath);
+    if (!testFile.is_open()) {
+        UI::showMessage("No CSV data found", UI::MessageType::Warning);
+        
+        cout << "\n";
+        cout << UI::boxTop(50) << "\n";
+        cout << UI::boxRow("  [1] Fetch new data from YouTube API", 50) << "\n";
+        cout << UI::boxRow("  [0] Back to main menu", 50) << "\n";
+        cout << UI::boxBottom(50) << "\n";
+        
+        UI::printPrompt("Select");
+        int choice;
+        cin >> choice;
+        
+        if (choice == 1) {
+            if (!callDataCollector()) {
+                cout << "\n  Press Enter to continue...";
+                cin.ignore();
+                cin.get();
+                return;
+            }
+        } else {
+            return;
+        }
+    } else {
+        testFile.close();
+        
+        UI::showMessage("Existing data found: youtube_latest.csv", UI::MessageType::Success);
+        
+        cout << "\n";
+        cout << UI::boxTop(50) << "\n";
+        cout << UI::boxRow("  [1] Use existing data", 50) << "\n";
+        cout << UI::boxRow("  [2] Fetch new data (refresh)", 50) << "\n";
+        cout << UI::boxRow("  [0] Back to main menu", 50) << "\n";
+        cout << UI::boxBottom(50) << "\n";
+        
+        UI::printPrompt("Select");
+        int choice;
+        cin >> choice;
+        
+        if (choice == 2) {
+            if (!callDataCollector()) {
+                cout << "\n  Press Enter to continue...";
+                cin.ignore();
+                cin.get();
+                return;
+            }
+        } else if (choice == 0) {
+            return;
+        }
+    }
+    
+    UI::showSpinner("Loading CSV data", 500);
+    
+    vector<Video> videos = CsvDataLoader::loadAll(latestPath);
+    
+    if (videos.empty()) {
+        UI::showMessage("No data in CSV file", UI::MessageType::Error);
+        cout << "\n  Press Enter to continue...";
+        cin.ignore();
+        cin.get();
+        return;
+    }
+    
+    UI::showMessage("Loaded " + to_string(videos.size()) + " videos", UI::MessageType::Success);
+    
+    // Check for refresh data
+    ifstream allFile(allPath);
+    bool hasRefreshData = false;
+    vector<Video> refreshVideos;
+    
+    if (allFile.is_open()) {
+        allFile.close();
+        vector<string> timestamps = CsvDataLoader::getTimestamps(allPath);
+        
+        if (timestamps.size() >= 2) {
+            cout << "\n  [+] Refresh data available! ("
+                 << timestamps.size() << " timestamps)\n";
+            
+            auto [initial, refresh] = CsvDataLoader::loadAndSplit(allPath);
+            if (!refresh.empty()) {
+                refreshVideos = refresh;
+                hasRefreshData = true;
+            }
+        }
+    }
+    
+    cout << endl;
+    
+    RankPolicy policy;
+    RankEngine engine(policy);
+    engine.setDataSourceType(DataSourceType::Real);  // Set data source type
+    engine.interface(videos);
+}
+
+// ============================================================================
+// Dummy Data Mode
+// ============================================================================
+
+void runDummyDataMode() {
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 60;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("  Dummy Data Mode (Test Data Generator)", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    UI::printNumberPrompt("Number of videos to generate", 1, 2000);
+    int count;
+    cin >> count;
+    
+    if (count < 1) count = 1;
+    if (count > 2000) count = 2000;
+    
+    cout << "\n";
+    cout << UI::boxTop(55) << "\n";
+    cout << UI::boxRow("  Generate refresh data? (for AVL/OnlineInsert)", 55) << "\n";
+    cout << UI::boxMiddle(55) << "\n";
+    cout << UI::boxRow("  [1] Yes (two timestamps)", 55) << "\n";
+    cout << UI::boxRow("  [2] No (single timestamp)", 55) << "\n";
+    cout << UI::boxBottom(55) << "\n";
+    
+    UI::printPrompt("Select");
+    int refreshChoice;
+    cin >> refreshChoice;
+    
+    UI::showSpinner("Generating dummy data", 800);
+    
+    RankPolicy policy;
+    RankEngine engine(policy);
+    engine.setDataSourceType(DataSourceType::Dummy);  // Set data source type
+    
+    if (refreshChoice == 1) {
+        auto [initial, refreshed] = generateDummyDataWithRefresh(count);
+        UI::showMessage("Generated " + to_string(initial.size()) + " videos with refresh data", UI::MessageType::Success);
+        engine.interface(initial);
+    } else {
+        vector<Video> dummyData = generateDummyData(count);
+        UI::showMessage("Generated " + to_string(dummyData.size()) + " videos", UI::MessageType::Success);
+        engine.interface(dummyData);
+    }
+}
+
+// ============================================================================
+// Main Function
 // ============================================================================
 
 int main() {
-    // 콘솔 UTF-8 설정 (Windows)
-    #ifdef _WIN32
-    system("chcp 65001 > nul");
-    #endif
+    // Initialize UI
+    UI::initConsole(false, UI::BoxStyle::Ascii);
     
-    cout << "시스템 초기화 중..." << endl;
+    // Welcome screen
+    UI::showWelcomeScreen();
+    std::this_thread::sleep_for(std::chrono::milliseconds(1500));
     
-    // 1. 데이터 제공자 생성 (테스트용 더미 데이터)
-    auto dataProvider = make_unique<Adapter::DummyDataProvider>(1000, 42);
-    
-    // 2. 랭킹 엔진 설정
-    Engine::RankingConfig config;
-    config.topK = 100;
-    config.sortAlgorithm = Sorting::Algorithm::QuickSort;
-    config.scoreStrategy = Scoring::Strategy::Balanced;
-    
-    // 3. 랭킹 엔진 생성 및 초기화
-    Engine::RankingEngine engine(config);
-    engine.setDataProvider(move(dataProvider));
-    
-    if (!engine.build()) {
-        cerr << "랭킹 엔진 초기화 실패: " << engine.getLastError() << endl;
-        return 1;
-    }
-    
-    cout << "초기화 완료! " << engine.getVideoCount() << "개 영상 로드됨." << endl;
-    
-    // 메인 루프
     int choice;
     bool running = true;
     
     while (running) {
-        printMenu();
-        cout << "선택: ";
+        UI::clearScreen();
+        UI::printLogo();
+        
+        // Main menu
+        const int W = 60;
+        cout << "\n";
+        cout << UI::boxTop(W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxRow("               MAIN MENU", W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxMiddle(W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxRow("  [1] Real Data   - Load from YouTube API CSV", W) << "\n";
+        cout << UI::boxRow("  [2] Dummy Data  - Generate test data (up to 2000)", W) << "\n";
+        cout << UI::boxRow("  [3] Benchmark   - View algorithm performance history", W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxMiddle(W) << "\n";
+        cout << UI::boxRow("  [0] Exit", W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxBottom(W) << "\n";
+        
+        UI::printPrompt("Select");
         cin >> choice;
         
         switch (choice) {
-            case 1: {
-                // 전체 랭킹 조회
-                int count;
-                cout << "출력할 순위 수: ";
-                cin >> count;
-                engine.printRanking(count);
+            case 1:
+                runRealDataMode();
                 break;
-            }
             
-            case 2: {
-                // 정렬 알고리즘 변경
-                printSortAlgorithms();
-                int algoChoice;
-                cout << "선택: ";
-                cin >> algoChoice;
-                
-                if (algoChoice >= 1 && algoChoice <= 8) {
-                    Sorting::Algorithm algos[] = {
-                        Sorting::Algorithm::SelectionSort,
-                        Sorting::Algorithm::InsertionSort,
-                        Sorting::Algorithm::BubbleSort,
-                        Sorting::Algorithm::QuickSort,
-                        Sorting::Algorithm::MergeSort,
-                        Sorting::Algorithm::ShellSort,
-                        Sorting::Algorithm::HeapSort,
-                        Sorting::Algorithm::StdSort
-                    };
-                    engine.setSortAlgorithm(algos[algoChoice - 1]);
-                    engine.build();  // 재정렬
-                    cout << "알고리즘 변경 완료!" << endl;
-                }
+            case 2:
+                runDummyDataMode();
                 break;
-            }
             
-            case 3: {
-                // 점수 계산 전략 변경
-                printScoreStrategies();
-                int stratChoice;
-                cout << "선택: ";
-                cin >> stratChoice;
-                
-                if (stratChoice >= 1 && stratChoice <= 4) {
-                    Scoring::Strategy strats[] = {
-                        Scoring::Strategy::ViewWeighted,
-                        Scoring::Strategy::EngagementBased,
-                        Scoring::Strategy::Trending,
-                        Scoring::Strategy::Balanced
-                    };
-                    engine.setScoreStrategy(strats[stratChoice - 1]);
-                    engine.build();  // 재계산 및 재정렬
-                    cout << "전략 변경 완료!" << endl;
-                }
+            case 3:
+                showBenchmarkHistory();
                 break;
-            }
-            
-            case 4: {
-                // 랭킹 새로고침
-                cout << "랭킹 새로고침 중..." << endl;
-                if (engine.refresh()) {
-                    cout << "새로고침 완료!" << endl;
-                } else {
-                    cout << "새로고침 실패: " << engine.getLastError() << endl;
-                }
-                break;
-            }
-            
-            case 5: {
-                // 벤치마크
-                // 벤치마크용 더미 데이터 생성
-                Adapter::DummyDataProvider benchProvider(5000, 123);
-                auto result = benchProvider.fetchVideos({5000, "", "", "KR", true});
-                
-                // 점수 계산
-                Scoring::ScoreCalculator calc(Scoring::Strategy::Balanced);
-                calc.calculateAll(result.videos);
-                
-                runBenchmark(result.videos);
-                break;
-            }
-            
-            case 6: {
-                // 특정 영상 순위 조회
-                cout << "영상 순위 조회 (1~" << engine.getVideoCount() << "): ";
-                int rank;
-                cin >> rank;
-                
-                auto video = engine.getVideoAtRank(rank);
-                if (video) {
-                    printSeparator("영상 정보");
-                    cout << "순위: #" << rank << endl;
-                    cout << "제목: " << video->title << endl;
-                    cout << "채널: " << video->channelName << endl;
-                    cout << "점수: " << static_cast<int>(video->score) << endl;
-                    cout << "조회수: " << video->viewCount << endl;
-                    cout << "좋아요: " << video->likeCount << endl;
-                    cout << "댓글: " << video->commentCount << endl;
-                } else {
-                    cout << "해당 순위의 영상이 없습니다." << endl;
-                }
-                break;
-            }
             
             case 0:
                 running = false;
-                cout << "프로그램을 종료합니다." << endl;
+                UI::showExitScreen();
                 break;
             
             default:
-                cout << "잘못된 선택입니다." << endl;
+                UI::showMessage("Invalid selection", UI::MessageType::Warning);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 break;
         }
     }

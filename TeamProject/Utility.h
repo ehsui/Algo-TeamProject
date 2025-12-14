@@ -1,15 +1,14 @@
 ﻿#pragma once
 /**
  * @file Utility.h
- * @brief 공용 유틸리티 함수 및 상수
+ * @brief Common Utility Functions and Constants
  * 
- * [포함 내용]
- * - UI 출력 도우미
- * - 공통 알고리즘 함수 (partition 등)
- * - 타입 정의
+ * [Contents]
+ * - UI output helpers
+ * - Common algorithm functions (partition, etc.)
+ * - Type definitions
  */
 
-// 필요한 헤더만 포함
 #include <iostream>
 #include <vector>
 #include <string>
@@ -21,39 +20,38 @@
 using namespace std;
 
 // ============================================================================
-// UI 유틸리티
+// UI Utilities (Legacy - prefer UI module)
 // ============================================================================
 
-/// 구분선 문자열
+/// Separator line string
 inline const string CUTLINE = "------------------------------------";
 
-/// 구분선 출력
+/// Print separator line
 inline void print_cutline() {
     cout << CUTLINE << endl;
 }
 
-/// 제목 있는 구분선 출력
+/// Print section with title
 inline void print_section(const string& title) {
     cout << "\n===== " << title << " =====" << endl;
 }
 
 // ============================================================================
-// 알고리즘 유틸리티
+// Algorithm Utilities
 // ============================================================================
 
 /**
- * @brief Hoare 파티션 함수
+ * @brief Hoare Partition Function
  * 
- * Quick Sort와 Quick Select에서 사용되는 파티션 함수입니다.
- * 중앙값을 피벗으로 사용하여 worst case를 방지합니다.
+ * Partition function used in Quick Sort and Quick Select.
+ * Uses median as pivot to prevent worst case.
  * 
- * @param p 파티션할 벡터
- * @param left 시작 인덱스
- * @param right 끝 인덱스
- * @return 파티션 경계 인덱스
+ * @param p Vector to partition
+ * @param left Start index
+ * @param right End index
+ * @return Partition boundary index
  * 
- * [시간복잡도] O(n)
- * [정렬 방향] 내림차순 (큰 값이 앞으로)
+ * [Time Complexity] O(n)
+ * [Sort Direction] Descending (larger values first)
  */
 int partition_d(vector<Score>& p, int left, int right);
-

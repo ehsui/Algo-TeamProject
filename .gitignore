@@ -361,3 +361,20 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ============================================================================
+# 프로젝트 전용 제외 항목
+# ============================================================================
+
+# API 키 설정 파일 (절대 커밋 금지!)
+config.txt
+**/config.txt
+
+# YouTube 데이터 수집기 DB
+*.db
+youtube_data.db
+
+# vcpkg 빌드 산출물
+**/vcpkg_installed/
+# API Key (sensitive)
+DataCollector/config.txt

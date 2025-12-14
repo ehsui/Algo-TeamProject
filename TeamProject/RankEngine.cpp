@@ -1,27 +1,24 @@
 ﻿/**
  * @file RankEngine.cpp
- * @brief 랭킹 엔진 구현
+ * @brief Ranking Engine Implementation with UI
  */
 
 #include "RankEngine.h"
-#include "BasicSelect.hpp"  // 템플릿 선택 알고리즘
+#include "BasicSelect.hpp"
+#include "UI/YouTubeRankUI.h"
+#include <iomanip>
 
 using namespace std;
 
 RankEngine::RankEngine(RankPolicy policy) : P(policy) {}
 
 void RankEngine::sortInterface() {
-    print_cutline();
-    cout << "\n사용할 정렬 알고리즘을 선택해주세요\n";
-    
-    for (int i = 0; i < 8; i++) {
-        cout << i + 1 << ". " << sortname[i] << "\n";
-    }
-    
-    print_cutline();
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::printSortAlgorithmMenu();
     
     while (true) {
-        cout << "정렬 입력(숫자): ";
+        UI::printPrompt("Select sort algorithm");
         int a;
         cin >> a;
         
@@ -30,30 +27,17 @@ void RankEngine::sortInterface() {
             break;
         }
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input. Please try again.", UI::MessageType::Warning);
     }
 }
 
 void RankEngine::selectInterface() {
-    print_cutline();
-    cout << "\n사용할 선택(탐색) 알고리즘을 선택해주세요\n";
-    cout << "[Top-K 요소를 찾는 알고리즘]\n\n";
-    
-    for (int i = 0; i < 4; i++) {
-        cout << i + 1 << ". " << selectname[i];
-        switch (i) {
-            case 0: cout << "  - O(n log k)"; break;
-            case 1: cout << "  - O(n) 평균"; break;
-            case 2: cout << "  - O(n log max), 정수 전용"; break;
-            case 3: cout << "  - O(n) 평균"; break;
-        }
-        cout << "\n";
-    }
-    
-    print_cutline();
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::printSelectAlgorithmMenu();
     
     while (true) {
-        cout << "선택 알고리즘 입력(숫자): ";
+        UI::printPrompt("Select algorithm");
         int a;
         cin >> a;
         
@@ -62,24 +46,72 @@ void RankEngine::selectInterface() {
             break;
         }
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input. Please try again.", UI::MessageType::Warning);
+    }
+}
+
+void RankEngine::scoringInterface() {
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 65;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        SCORING STRATEGY SELECTION", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxMiddle(W) << "\n";
+    cout << UI::boxRow("  [1] Engagement Rate  (Recommended)", W) << "\n";
+    cout << UI::boxRow("      Views + engagement bonus (like/comment ratio)", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("  [2] Weighted Sum", W) << "\n";
+    cout << UI::boxRow("      Views*1 + Likes*50 + Comments*200", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("  [3] Normalized (0-1000 scale)", W) << "\n";
+    cout << UI::boxRow("      Balanced metrics with caps", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("  [4] Legacy (Original formula)", W) << "\n";
+    cout << UI::boxRow("      log(views)*100 + log(likes)*200 + log(comments)*300", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    while (true) {
+        UI::printPrompt("Select scoring strategy");
+        int a;
+        cin >> a;
+        
+        if (a >= 1 && a <= 4) {
+            P.scoring = static_cast<ScoringStrategy>(a - 1);
+            UI::showMessage(string("Selected: ") + ScoringStrategyName[static_cast<int>(P.scoring)], UI::MessageType::Success);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            break;
+        }
+        
+        UI::showMessage("Invalid input. Please try again.", UI::MessageType::Warning);
     }
 }
 
 void RankEngine::multiMetricInterface() {
-    print_cutline();
-    cout << "\n다중 지표 랭킹 설정\n";
-    cout << "[사전식 비교: 첫 번째 지표가 같으면 두 번째로...]\n\n";
+    UI::clearScreen();
+    UI::printMiniLogo();
     
-    cout << "1. 기본 (조회수 > 좋아요 > 댓글)\n";
-    cout << "2. 트렌딩 (Δ조회수 > Δ좋아요 > Δ댓글)\n";
-    cout << "3. 참여도 (좋아요 > 댓글 > 조회수)\n";
-    cout << "4. 커스텀 설정\n";
-    
-    print_cutline();
+    const int W = 65;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        MULTI-METRIC RANKING CONFIGURATION", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("  Lexicographic: if 1st metric is equal, compare 2nd...", W) << "\n";
+    cout << UI::boxMiddle(W) << "\n";
+    cout << UI::boxRow("  [1] Default     Views > Likes > Comments", W) << "\n";
+    cout << UI::boxRow("  [2] Trending    DeltaViews > DeltaLikes > DeltaComments", W) << "\n";
+    cout << UI::boxRow("  [3] Engagement  Likes > Comments > Views", W) << "\n";
+    cout << UI::boxRow("  [4] Custom      Set your own priority", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
     
     while (true) {
-        cout << "설정 선택(숫자): ";
+        UI::printPrompt("Select configuration");
         int a;
         cin >> a;
         
@@ -94,13 +126,18 @@ void RankEngine::multiMetricInterface() {
                 P.metricConfig = MultiMetricConfig::engagementConfig();
                 return;
             case 4: {
-                // 커스텀 설정
                 P.metricConfig.priority.clear();
-                cout << "\n지표 우선순위를 설정하세요 (최대 5개, 0으로 종료)\n";
-                cout << "1: 조회수  2: 좋아요  3: 댓글  4: Δ조회수  5: Δ좋아요  6: Δ댓글\n";
+                
+                cout << "\n";
+                cout << UI::boxTop(60) << "\n";
+                cout << UI::boxRow("  Custom Priority (max 5, enter 0 to finish)", 60) << "\n";
+                cout << UI::boxMiddle(60) << "\n";
+                cout << UI::boxRow("  1: Views    2: Likes     3: Comments", 60) << "\n";
+                cout << UI::boxRow("  4: DViews   5: DLikes    6: DComments", 60) << "\n";
+                cout << UI::boxBottom(60) << "\n";
                 
                 for (int i = 0; i < 5; i++) {
-                    cout << "지표 " << (i + 1) << " (0=종료): ";
+                    cout << "  Metric " << (i + 1) << " (0=finish): ";
                     int m;
                     cin >> m;
                     
@@ -125,7 +162,7 @@ void RankEngine::multiMetricInterface() {
                 return;
             }
             default:
-                cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+                UI::showMessage("Invalid input. Please try again.", UI::MessageType::Warning);
         }
     }
 }
@@ -151,7 +188,7 @@ void RankEngine::build() {
         case AlgorithmType::SelectThenSort:
             build_selectThenSort();
             break;
-        case AlgorithmType::AVLTree:
+        case AlgorithmType::AVLTreeRank:
             build_AVLTree();
             break;
         case AlgorithmType::OnlineInsert:
@@ -162,7 +199,6 @@ void RankEngine::build() {
             break;
     }
     
-    // 랭킹 맵 구축
     for (size_t i = 0; i < cur.size(); i++) {
         pos[cur[i].videoId] = static_cast<int>(i);
     }
@@ -173,7 +209,7 @@ void RankEngine::updateScore(const string& videoId, Score newScore) {
     if (it != pos.end()) {
         int idx = it->second;
         cur[idx].Value = newScore;
-        adjust(idx);  // 순위 재조정
+        adjust(idx);
     }
 }
 
@@ -188,124 +224,224 @@ void RankEngine::savePrevRanking() {
 }
 
 void RankEngine::printRanking() {
-    print_cutline();
-    cout << "\n===== TOP " << P.k << " 랭킹 =====\n";
-    cout << "[방식: " << AlgoName[P.a];
+    // Build ranking rows for UI
+    vector<UI::RankingRow> rows;
+    
+    string algoName = AlgoName[P.a];
+    string scoreInfo;
+    
     if (P.a == AlgorithmType::BasicSort) {
-        cout << " / 정렬: " << sortname[P.s];
+        scoreInfo = sortname[P.s];
     } else if (P.a == AlgorithmType::SelectThenSort) {
-        cout << " / 선택: " << selectname[P.sel] << " / 정렬: " << sortname[P.s];
+        scoreInfo = string(selectname[P.sel]) + " + " + sortname[P.s];
     } else if (P.a == AlgorithmType::MultiMetric) {
-        cout << " / 지표: ";
-        for (size_t i = 0; i < P.metricConfig.priority.size(); i++) {
-            if (i > 0) cout << " > ";
-            cout << getMetricName(P.metricConfig.priority[i]);
+        for (size_t i = 0; i < P.metricConfig.priority.size() && i < 3; i++) {
+            if (i > 0) scoreInfo += ">";
+            scoreInfo += getMetricName(P.metricConfig.priority[i]);
         }
     }
-    cout << "]\n\n";
     
-    // 다중 지표 모드일 때
     if (P.a == AlgorithmType::MultiMetric && !curMulti.empty()) {
         for (size_t i = 0; i < curMulti.size() && i < static_cast<size_t>(P.k); i++) {
-            cout << "#" << (i + 1) << " | ";
-            for (size_t j = 0; j < curMulti[i].metrics.size(); j++) {
-                if (j > 0) cout << " > ";
-                cout << curMulti[i].metrics[j];
+            UI::RankingRow row;
+            row.rank = static_cast<int>(i + 1);
+            row.title = curMulti[i].title;
+            row.channel = "";
+            row.score = 0;
+            row.views = 0;
+            row.likes = 0;
+            row.rankChange = 0;
+            
+            if (!curMulti[i].metrics.empty()) {
+                row.score = curMulti[i].metrics[0];
             }
-            cout << " | " << curMulti[i].title << "\n";
+            
+            rows.push_back(row);
         }
     } else {
         auto topK = getTopK();
         for (size_t i = 0; i < topK.size(); i++) {
-            cout << "#" << (i + 1) << " | Score: " << topK[i].Value 
-                 << " | " << topK[i].title << "\n";
+            UI::RankingRow row;
+            row.rank = static_cast<int>(i + 1);
+            row.title = topK[i].title.empty() ? "(No Title)" : topK[i].title;
+            row.channel = "";
+            row.score = static_cast<int64_t>(topK[i].Value);
+            row.views = 0;
+            row.likes = 0;
+            row.rankChange = 0;
+            
+            rows.push_back(row);
         }
     }
-    print_cutline();
+    
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::printRankingTable(rows, algoName, scoreInfo, static_cast<int>(cur.size()));
 }
 
 void RankEngine::printPrevRanking() {
     if (prevCur.empty() && prevMulti.empty()) {
-        print_cutline();
-        cout << "\n직전 랭킹이 없습니다. (갱신을 먼저 수행해주세요)\n";
-        print_cutline();
+        UI::showMessage("No previous ranking available. Please refresh first.", UI::MessageType::Warning);
+        cout << "\n  Press Enter to continue...";
+        cin.ignore();
+        cin.get();
         return;
     }
     
-    print_cutline();
-    cout << "\n===== 직전 랭킹 (갱신 전) =====\n";
-    cout << "[방식: " << AlgoName[P.a] << "]\n\n";
+    vector<UI::RankingRow> rows;
     
     if (P.a == AlgorithmType::MultiMetric && !prevMulti.empty()) {
         for (size_t i = 0; i < prevMulti.size() && i < static_cast<size_t>(P.k); i++) {
-            cout << "#" << (i + 1) << " | ";
-            for (size_t j = 0; j < prevMulti[i].metrics.size(); j++) {
-                if (j > 0) cout << " > ";
-                cout << prevMulti[i].metrics[j];
+            UI::RankingRow row;
+            row.rank = static_cast<int>(i + 1);
+            row.title = prevMulti[i].title;
+            row.channel = "";
+            row.score = 0;
+            row.views = 0;
+            row.likes = 0;
+            row.rankChange = 0;
+            
+            if (!prevMulti[i].metrics.empty()) {
+                row.score = prevMulti[i].metrics[0];
             }
-            cout << " | " << prevMulti[i].title << "\n";
+            
+            rows.push_back(row);
         }
     } else {
         int k = min(P.k, static_cast<int>(prevCur.size()));
         for (int i = 0; i < k; i++) {
-            cout << "#" << (i + 1) << " | Score: " << prevCur[i].Value 
-                 << " | " << prevCur[i].title << "\n";
+            UI::RankingRow row;
+            row.rank = i + 1;
+            row.title = prevCur[i].title.empty() ? "(No Title)" : prevCur[i].title;
+            row.channel = "";
+            row.score = static_cast<int64_t>(prevCur[i].Value);
+            row.views = 0;
+            row.likes = 0;
+            row.rankChange = 0;
+            
+            rows.push_back(row);
         }
     }
-    print_cutline();
+    
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 90;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("  PREVIOUS RANKING (before refresh)", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    UI::printRankingTable(rows, AlgoName[P.a], "Previous", static_cast<int>(prevCur.size()));
+    
+    cout << "\n  Press Enter to continue...";
+    cin.ignore();
+    cin.get();
 }
 
 void RankEngine::printTimeStats() {
-    print_cutline();
-    cout << "\n===== 시간 측정 결과 =====\n";
-    cout << "초기 빌드 시간: " << buildTimeMs << " ms\n";
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 55;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        TIME STATISTICS", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxMiddle(W) << "\n";
+    
+    ostringstream build;
+    build << "  Initial Build:    " << fixed << setprecision(2) << buildTimeMs << " ms";
+    cout << UI::boxRow(build.str(), W) << "\n";
+    
     if (refreshCount > 0) {
-        cout << "최근 갱신 시간: " << refreshTimeMs << " ms\n";
-        cout << "총 갱신 횟수: " << refreshCount << "회\n";
+        ostringstream refresh;
+        refresh << "  Last Refresh:     " << fixed << setprecision(2) << refreshTimeMs << " ms";
+        cout << UI::boxRow(refresh.str(), W) << "\n";
+        
+        ostringstream count;
+        count << "  Total Refreshes:  " << refreshCount;
+        cout << UI::boxRow(count.str(), W) << "\n";
     } else {
-        cout << "갱신 기록 없음\n";
+        cout << UI::boxRow("  No refresh history", W) << "\n";
     }
-    print_cutline();
+    
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
+    
+    cout << "\n  Press Enter to continue...";
+    cin.ignore();
+    cin.get();
 }
 
 void RankEngine::resultMenu() {
     while (true) {
-        print_cutline();
-        cout << "\n[결과 메뉴]\n";
-        cout << "1. 현재 랭킹 보기\n";
+        UI::clearScreen();
+        UI::printMiniLogo();
+        
+        const int W = 55;
+        cout << "\n";
+        cout << UI::boxTop(W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxRow("        RESULT MENU", W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxMiddle(W) << "\n";
+        cout << UI::boxRow("  [1] View Current Ranking", W) << "\n";
         
         if (hasRefreshData) {
-            cout << "2. 새로고침 (두 번째 시점 데이터로 갱신)\n";
+            cout << UI::boxRow("  [2] Refresh (update with new data)", W) << "\n";
         } else {
-            cout << "2. 새로고침 (동일 데이터로 갱신)\n";
+            cout << UI::boxRow("  [2] Refresh (re-process same data)", W) << "\n";
         }
         
-        cout << "3. 직전 랭킹 보기\n";
-        cout << "4. 시간 측정 결과\n";
-        cout << "5. 종료\n";
-        print_cutline();
+        cout << UI::boxRow("  [3] View Previous Ranking", W) << "\n";
+        cout << UI::boxRow("  [4] Time Statistics", W) << "\n";
+        cout << UI::boxMiddle(W) << "\n";
+        cout << UI::boxRow("  [0] Exit to Main Menu", W) << "\n";
+        cout << UI::boxRow("", W) << "\n";
+        cout << UI::boxBottom(W) << "\n";
         
-        cout << "메뉴 선택: ";
+        UI::printPrompt("Select");
         int ch;
         cin >> ch;
         
         switch (ch) {
             case 1:
                 printRanking();
+                cout << "\n  Press Enter to continue...";
+                cin.ignore();
+                cin.get();
                 break;
             case 2: {
-                cout << "\n데이터 갱신 중...\n";
+                UI::showSpinner("Refreshing data", 500);
                 
                 if (hasRefreshData) {
-                    // 두 번째 시점 데이터로 갱신
                     refresh(refreshData);
                 } else {
-                    // 동일 데이터로 갱신 (테스트용)
                     refresh(srcData);
                 }
                 
-                cout << "갱신 완료! (소요 시간: " << refreshTimeMs << " ms)\n";
+                // Record benchmark for refresh
+                addBenchmarkRecord(
+                    dataSourceType,
+                    static_cast<int>(srcData.size()),
+                    P.k,
+                    static_cast<int>(P.a),
+                    static_cast<int>(P.s),
+                    static_cast<int>(P.sel),
+                    static_cast<int>(P.scoring),
+                    buildTimeMs,
+                    refreshTimeMs,
+                    true  // is refresh
+                );
+                
+                UI::showMessage("Refresh complete! Time: " + to_string(static_cast<int>(refreshTimeMs)) + " ms", UI::MessageType::Success);
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
                 printRanking();
+                cout << "\n  Press Enter to continue...";
+                cin.ignore();
+                cin.get();
                 break;
             }
             case 3:
@@ -314,49 +450,54 @@ void RankEngine::resultMenu() {
             case 4:
                 printTimeStats();
                 break;
-            case 5:
+            case 0:
                 return;
             default:
-                cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+                UI::showMessage("Invalid input", UI::MessageType::Warning);
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
     }
 }
 
 void RankEngine::interface(vector<Video>& Src) {
-    // 외부 데이터 저장
     srcData = Src;
     hasRefreshData = false;
     
-    print_cutline();
-    cout << "유튜브 랭킹 출력 프로그램\n\n";
-    print_cutline();
-    cout << "\n1. 시작하기\n2. 종료하기\n";
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 60;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        YOUTUBE RANKING ENGINE", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("   Data loaded: " + to_string(Src.size()) + " videos", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxMiddle(W) << "\n";
+    cout << UI::boxRow("  [1] Start Ranking", W) << "\n";
+    cout << UI::boxRow("  [0] Exit", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
     
     while (true) {
-        cout << "메뉴 선택: ";
+        UI::printPrompt("Select");
         int ch;
         cin >> ch;
         
-        if (ch == 2) return;
+        if (ch == 0) return;
         if (ch == 1) break;
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input", UI::MessageType::Warning);
     }
     
-    // 랭킹 방식 선택
-    print_cutline();
-    cout << "\n사용할 랭킹 방식을 선택해주세요\n";
-    for (int i = 0; i < 5; i++) {
-        cout << i + 1 << ". " << AlgoName[i];
-        if (i == 0) cout << " (전체 정렬)";
-        if (i == 1) cout << " (선택 후 정렬)";
-        if (i == 3) cout << " (실시간 부분 갱신)";
-        cout << "\n";
-    }
-    print_cutline();
+    // Ranking method selection
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::printRankingModeMenu();
     
     while (true) {
-        cout << "랭킹 방식 입력(숫자): ";
+        UI::printPrompt("Select ranking method");
         int a;
         cin >> a;
         
@@ -365,47 +506,43 @@ void RankEngine::interface(vector<Video>& Src) {
             break;
         }
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input", UI::MessageType::Warning);
     }
     
-    // Top-K 설정
-    print_cutline();
-    while (true) {
-        cout << "\n출력할 순위 수를 입력해주세요 (1~" << srcData.size() << "): ";
-        int k;
-        cin >> k;
+    // Scoring strategy selection (except MultiMetric which has its own)
+    if (P.a != AlgorithmType::MultiMetric) {
+        scoringInterface();
         
-        if (k >= 1 && k <= static_cast<int>(srcData.size())) {
-            P.k = k;
-            break;
+        // Recalculate scores with selected strategy
+        for (Video& v : srcData) {
+            v.calculateScore(P.scoring);
         }
-        
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
     }
     
-    // 데이터 설정
+    // Top-K input
+    int maxK = static_cast<int>(srcData.size());
+    int k = UI::showTopKInputScreen(maxK);
+    if (k < 1) k = 1;
+    if (k > maxK) k = maxK;
+    P.k = k;
+    
     setData(cur, srcData);
     
-    // 방식에 따라 추가 옵션 선택
+    // Algorithm-specific settings
     if (P.a == AlgorithmType::BasicSort) {
-        // 전체 정렬: 정렬 알고리즘만 선택
         sortInterface();
     } 
     else if (P.a == AlgorithmType::SelectThenSort) {
-        // 선택 후 정렬: 선택 알고리즘 + 정렬 알고리즘 선택
         selectInterface();
         sortInterface();
     }
     else if (P.a == AlgorithmType::OnlineInsert) {
-        // 온라인 삽입: 선택 + 정렬 (초기 빌드용)
         selectInterface();
         sortInterface();
     }
     else if (P.a == AlgorithmType::MultiMetric) {
-        // 다중 지표: 지표 우선순위 설정
         multiMetricInterface();
         
-        // 다중 지표 키 생성
         curMulti.clear();
         curMulti.reserve(srcData.size());
         for (const Video& v : srcData) {
@@ -421,84 +558,101 @@ void RankEngine::interface(vector<Video>& Src) {
         }
     }
     
-    // 빌드 (시간 측정)
-    cout << "\n초기 빌드 중...\n";
+    // Build
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::showSpinner("Building ranking", 1000);
+    
     auto startBuild = chrono::high_resolution_clock::now();
     build();
     auto endBuild = chrono::high_resolution_clock::now();
     buildTimeMs = chrono::duration<double, milli>(endBuild - startBuild).count();
-    cout << "빌드 완료! (소요 시간: " << buildTimeMs << " ms)\n";
     
-    // 결과 출력
+    // Record benchmark
+    addBenchmarkRecord(
+        dataSourceType,
+        static_cast<int>(srcData.size()),
+        P.k,
+        static_cast<int>(P.a),
+        static_cast<int>(P.s),
+        static_cast<int>(P.sel),
+        static_cast<int>(P.scoring),
+        buildTimeMs,
+        0.0,
+        false  // is build, not refresh
+    );
+    
+    UI::showMessage("Build complete! Time: " + to_string(static_cast<int>(buildTimeMs)) + " ms", UI::MessageType::Success);
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
+    
     printRanking();
+    cout << "\n  Press Enter to continue...";
+    cin.ignore();
+    cin.get();
     
-    // 결과 메뉴 진입
     resultMenu();
 }
 
 // ============================================================================
-// CSV 파일 로드 인터페이스
+// CSV File Load Interface
 // ============================================================================
 
 void RankEngine::interface() {
-    print_cutline();
-    cout << "유튜브 랭킹 출력 프로그램\n\n";
-    cout << "[CSV 파일 로드 모드]\n";
-    print_cutline();
-    cout << "\n1. 시작하기\n2. 종료하기\n";
+    UI::clearScreen();
+    UI::printMiniLogo();
+    
+    const int W = 60;
+    cout << "\n";
+    cout << UI::boxTop(W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxRow("        CSV FILE LOAD MODE", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxMiddle(W) << "\n";
+    cout << UI::boxRow("  [1] Start", W) << "\n";
+    cout << UI::boxRow("  [0] Exit", W) << "\n";
+    cout << UI::boxRow("", W) << "\n";
+    cout << UI::boxBottom(W) << "\n";
     
     while (true) {
-        cout << "메뉴 선택: ";
+        UI::printPrompt("Select");
         int ch;
         cin >> ch;
         
-        if (ch == 2) return;
+        if (ch == 0) return;
         if (ch == 1) break;
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input", UI::MessageType::Warning);
     }
     
-    // CSV 파일 경로 입력
-    print_cutline();
-    cout << "\nCSV 파일 경로를 입력해주세요\n";
-    cout << "(예: C:/data/youtube.csv)\n";
-    print_cutline();
+    cout << "\n";
+    cout << UI::boxTop(55) << "\n";
+    cout << UI::boxRow("  Enter CSV file path", 55) << "\n";
+    cout << UI::boxRow("  (e.g., C:/data/youtube.csv)", 55) << "\n";
+    cout << UI::boxBottom(55) << "\n";
     
-    cin.ignore();  // 버퍼 비우기
+    cin.ignore();
     string csvPath;
-    cout << "파일 경로: ";
+    cout << "\n  File path: ";
     getline(cin, csvPath);
     
-    // 시점 목록 확인
     vector<string> timestamps = CsvDataLoader::getTimestamps(csvPath);
     
     if (timestamps.empty()) {
-        cout << "\nCSV 파일을 읽을 수 없거나 데이터가 없습니다.\n";
+        UI::showMessage("Cannot read CSV file or no data", UI::MessageType::Error);
+        cout << "\n  Press Enter to continue...";
+        cin.get();
         return;
     }
     
-    cout << "\n발견된 시점: ";
-    for (size_t i = 0; i < timestamps.size(); i++) {
-        if (i > 0) cout << ", ";
-        cout << timestamps[i];
-    }
-    cout << " (" << timestamps.size() << "개)\n";
+    UI::showMessage("Found " + to_string(timestamps.size()) + " timestamp(s)", UI::MessageType::Success);
     
-    // 랭킹 방식 선택
-    print_cutline();
-    cout << "\n사용할 랭킹 방식을 선택해주세요\n";
-    for (int i = 0; i < 5; i++) {
-        cout << i + 1 << ". " << AlgoName[i];
-        if (i == 0) cout << " (전체 정렬)";
-        if (i == 1) cout << " (선택 후 정렬)";
-        if (i == 2) cout << " (AVL 트리) - 두 시점 지원";
-        if (i == 3) cout << " (실시간 부분 갱신) - 두 시점 지원";
-        cout << "\n";
-    }
-    print_cutline();
+    // Ranking method selection
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::printRankingModeMenu();
     
     while (true) {
-        cout << "랭킹 방식 입력(숫자): ";
+        UI::printPrompt("Select ranking method");
         int a;
         cin >> a;
         
@@ -507,57 +661,51 @@ void RankEngine::interface() {
             break;
         }
         
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
+        UI::showMessage("Invalid input", UI::MessageType::Warning);
     }
     
-    // 데이터 로드 방식 결정
-    bool useTwoTimestamps = (P.a == AlgorithmType::AVLTree || P.a == AlgorithmType::OnlineInsert);
+    // Scoring strategy selection (except MultiMetric)
+    if (P.a != AlgorithmType::MultiMetric) {
+        scoringInterface();
+    }
+    
+    bool useTwoTimestamps = (P.a == AlgorithmType::AVLTreeRank || P.a == AlgorithmType::OnlineInsert);
     
     if (useTwoTimestamps && timestamps.size() >= 2) {
-        // 두 시점 데이터 분리 로드
-        cout << "\n두 시점 데이터를 로드합니다...\n";
-        cout << "  - 초기 데이터: " << timestamps[0] << "\n";
-        cout << "  - 갱신 데이터: " << timestamps[1] << "\n";
+        UI::showSpinner("Loading two-timestamp data", 800);
         
-        auto [initial, refresh] = CsvDataLoader::loadAndSplit(csvPath);
+        auto [initial, refresh] = CsvDataLoader::loadAndSplit(csvPath, P.scoring);
         srcData = initial;
         refreshData = refresh;
         hasRefreshData = true;
         
-        cout << "로드 완료! (초기: " << srcData.size() << "개, 갱신: " << refreshData.size() << "개)\n";
+        UI::showMessage("Loaded! Initial: " + to_string(srcData.size()) + ", Refresh: " + to_string(refreshData.size()), UI::MessageType::Success);
     } else {
-        // 단일 시점 또는 전체 로드
-        cout << "\n전체 데이터를 로드합니다...\n";
-        srcData = CsvDataLoader::loadAll(csvPath);
+        UI::showSpinner("Loading data", 500);
+        srcData = CsvDataLoader::loadAll(csvPath, P.scoring);
         hasRefreshData = false;
         
-        cout << "로드 완료! (" << srcData.size() << "개)\n";
+        UI::showMessage("Loaded " + to_string(srcData.size()) + " videos", UI::MessageType::Success);
     }
     
     if (srcData.empty()) {
-        cout << "\n데이터가 없습니다. 종료합니다.\n";
+        UI::showMessage("No data available", UI::MessageType::Error);
+        cout << "\n  Press Enter to continue...";
+        cin.ignore();
+        cin.get();
         return;
     }
     
-    // Top-K 설정
-    print_cutline();
-    while (true) {
-        cout << "\n출력할 순위 수를 입력해주세요 (1~" << srcData.size() << "): ";
-        int k;
-        cin >> k;
-        
-        if (k >= 1 && k <= static_cast<int>(srcData.size())) {
-            P.k = k;
-            break;
-        }
-        
-        cout << "잘못된 입력입니다. 다시 입력하세요.\n";
-    }
+    // Top-K input
+    int maxK = static_cast<int>(srcData.size());
+    int k = UI::showTopKInputScreen(maxK);
+    if (k < 1) k = 1;
+    if (k > maxK) k = maxK;
+    P.k = k;
     
-    // 데이터 설정
     setData(cur, srcData);
     
-    // 방식에 따라 추가 옵션 선택
+    // Algorithm-specific settings
     if (P.a == AlgorithmType::BasicSort) {
         sortInterface();
     } 
@@ -565,8 +713,8 @@ void RankEngine::interface() {
         selectInterface();
         sortInterface();
     }
-    else if (P.a == AlgorithmType::AVLTree) {
-        // AVL 트리: 추가 옵션 없음
+    else if (P.a == AlgorithmType::AVLTreeRank) {
+        // No additional settings
     }
     else if (P.a == AlgorithmType::OnlineInsert) {
         selectInterface();
@@ -590,22 +738,43 @@ void RankEngine::interface() {
         }
     }
     
-    // 빌드 (시간 측정)
-    cout << "\n초기 빌드 중...\n";
+    // Build
+    UI::clearScreen();
+    UI::printMiniLogo();
+    UI::showSpinner("Building ranking", 1000);
+    
     auto startBuild = chrono::high_resolution_clock::now();
     build();
     auto endBuild = chrono::high_resolution_clock::now();
     buildTimeMs = chrono::duration<double, milli>(endBuild - startBuild).count();
-    cout << "빌드 완료! (소요 시간: " << buildTimeMs << " ms)\n";
+    
+    // Record benchmark (CSV mode = Real data)
+    dataSourceType = DataSourceType::Real;
+    addBenchmarkRecord(
+        dataSourceType,
+        static_cast<int>(srcData.size()),
+        P.k,
+        static_cast<int>(P.a),
+        static_cast<int>(P.s),
+        static_cast<int>(P.sel),
+        static_cast<int>(P.scoring),
+        buildTimeMs,
+        0.0,
+        false  // is build, not refresh
+    );
+    
+    UI::showMessage("Build complete! Time: " + to_string(static_cast<int>(buildTimeMs)) + " ms", UI::MessageType::Success);
     
     if (hasRefreshData) {
-        cout << "\n[알림] 두 번째 시점 데이터가 준비되어 있습니다.\n";
-        cout << "결과 메뉴에서 '새로고침'을 선택하면 갱신을 테스트할 수 있습니다.\n";
+        cout << "\n  [+] Second timestamp data ready for refresh!" << endl;
     }
     
-    // 결과 출력
-    printRanking();
+    std::this_thread::sleep_for(std::chrono::milliseconds(800));
     
-    // 결과 메뉴 진입
+    printRanking();
+    cout << "\n  Press Enter to continue...";
+    cin.ignore();
+    cin.get();
+    
     resultMenu();
 }

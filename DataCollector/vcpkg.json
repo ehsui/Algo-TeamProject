@@ -1,0 +1,10 @@
+{
+	"name": "youtube-data-collector",
+	"version": "0.1.0",
+	"dependencies": [
+		"sqlite3",
+		"curl",
+		"nlohmann-json"
+	]
+}
+

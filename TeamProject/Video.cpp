@@ -1,6 +1,6 @@
 ﻿/**
  * @file Video.cpp
- * @brief YouTube 영상 정보 구조체 구현
+ * @brief YouTube Video Data Structure Implementation
  */
 
 #include "Video.h"
@@ -8,15 +8,15 @@
 #include <set>
 
 void Video::updateInfo(const Video& v) {
-    // 통계 정보 업데이트
+    // Update statistics
     viewCount = v.viewCount;
     likeCount = v.likeCount;
     commentCount = v.commentCount;
     
-    // 메타 정보 업데이트
+    // Update metadata
     fetchTimestamp = v.fetchTimestamp;
     
-    // 점수 재계산
+    // Recalculate score (using default strategy)
     calculateScore();
 }
 
@@ -24,13 +24,12 @@ key Video::makekey() const {
     return key{ score, videoId, title };
 }
 
-void Video::calculateScore() {
-    // Score.h의 함수 사용
-    score = CalculateScore(viewCount, likeCount, commentCount);
+void Video::calculateScore(ScoringStrategy strategy) {
+    score = CalculateScore(viewCount, likeCount, commentCount, strategy);
 }
 
 // ============================================================================
-// VideoMetrics 변환
+// VideoMetrics Conversion
 // ============================================================================
 
 Domain::VideoMetrics Video::toVideoMetrics() const {
@@ -47,7 +46,7 @@ Domain::VideoMetrics Video::toVideoMetrics() const {
     return vm;
 }
 
-Video Video::fromVideoMetrics(const Domain::VideoMetrics& vm) {
+YouTubeVideoInfo Video::fromVideoMetrics(const Domain::VideoMetrics& vm) {
     Video v;
     v.videoId = vm.id;
     v.title = vm.title;
@@ -61,7 +60,7 @@ Video Video::fromVideoMetrics(const Domain::VideoMetrics& vm) {
     return v;
 }
 
-Video Video::fromCsvRow(const string& videoId, const string& timestamp,
+YouTubeVideoInfo Video::fromCsvRow(const string& videoId, const string& timestamp,
                         long long views, long long likes, long long comments,
                         const string& title) {
     Video v;
@@ -71,12 +70,12 @@ Video Video::fromCsvRow(const string& videoId, const string& timestamp,
     v.likeCount = likes;
     v.commentCount = comments;
     v.fetchTimestamp = timestamp;
-    v.calculateScore();
+    v.calculateScore();  // Uses default strategy
     return v;
 }
 
 // ============================================================================
-// CsvDataLoader 구현
+// CsvDataLoader Implementation
 // ============================================================================
 
 vector<string> CsvDataLoader::parseCsvLine(const string& line) {
@@ -101,17 +100,17 @@ vector<string> CsvDataLoader::parseCsvLine(const string& line) {
     return result;
 }
 
-vector<Video> CsvDataLoader::loadAll(const string& filePath) {
+vector<Video> CsvDataLoader::loadAll(const string& filePath, ScoringStrategy strategy) {
     vector<Video> videos;
     ifstream file(filePath);
     
     if (!file.is_open()) {
-        cerr << "CSV 파일을 열 수 없습니다: " << filePath << endl;
+        cerr << "Cannot open CSV file: " << filePath << endl;
         return videos;
     }
     
     string line;
-    // 헤더 스킵
+    // Skip header
     getline(file, line);
     
     while (getline(file, line)) {
@@ -121,16 +120,26 @@ vector<Video> CsvDataLoader::loadAll(const string& filePath) {
         if (fields.size() < 6) continue;
         
         try {
+            // CSV format: video_id,title,view_count,like_count,comment_count,timestamp
             string videoId = fields[0];
-            string timestamp = fields[1];
+            string title = fields[1];
             long long views = stoll(fields[2]);
             long long likes = stoll(fields[3]);
             long long comments = stoll(fields[4]);
-            string title = fields[5];
+            string timestamp = fields[5];
             
-            videos.push_back(Video::fromCsvRow(videoId, timestamp, views, likes, comments, title));
+            Video v;
+            v.videoId = videoId;
+            v.title = title;
+            v.viewCount = views;
+            v.likeCount = likes;
+            v.commentCount = comments;
+            v.fetchTimestamp = timestamp;
+            v.calculateScore(strategy);
+            
+            videos.push_back(v);
         } catch (const exception& e) {
-            cerr << "CSV 파싱 오류: " << e.what() << endl;
+            cerr << "CSV parsing error: " << e.what() << endl;
             continue;
         }
     }
@@ -138,12 +147,12 @@ vector<Video> CsvDataLoader::loadAll(const string& filePath) {
     return videos;
 }
 
-vector<Video> CsvDataLoader::loadByTimestamp(const string& filePath, const string& timestamp) {
-    vector<Video> all = loadAll(filePath);
+vector<Video> CsvDataLoader::loadByTimestamp(const string& filePath, const string& timestamp,
+                                              ScoringStrategy strategy) {
+    vector<Video> all = loadAll(filePath, strategy);
     vector<Video> filtered;
     
     for (const Video& v : all) {
-        // timestamp가 해당 날짜로 시작하는지 확인
         if (v.fetchTimestamp.find(timestamp) != string::npos) {
             filtered.push_back(v);
         }
@@ -161,15 +170,15 @@ vector<string> CsvDataLoader::getTimestamps(const string& filePath) {
     }
     
     string line;
-    getline(file, line);  // 헤더 스킵
+    getline(file, line);  // Skip header
     
     while (getline(file, line)) {
         if (line.empty()) continue;
         
         vector<string> fields = parseCsvLine(line);
-        if (fields.size() >= 2) {
-            // 날짜 부분만 추출 (예: "2025-11-26 19:40:48" → "2025-11-26")
-            string timestamp = fields[1];
+        if (fields.size() >= 6) {
+            // CSV format: video_id,title,view_count,like_count,comment_count,timestamp
+            string timestamp = fields[5];
             size_t spacePos = timestamp.find(' ');
             if (spacePos != string::npos) {
                 timestamp = timestamp.substr(0, spacePos);
@@ -181,18 +190,16 @@ vector<string> CsvDataLoader::getTimestamps(const string& filePath) {
     return vector<string>(uniqueTimestamps.begin(), uniqueTimestamps.end());
 }
 
-pair<vector<Video>, vector<Video>> CsvDataLoader::loadAndSplit(const string& filePath) {
-    vector<Video> all = loadAll(filePath);
+pair<vector<Video>, vector<Video>> CsvDataLoader::loadAndSplit(const string& filePath,
+                                                                ScoringStrategy strategy) {
+    vector<Video> all = loadAll(filePath, strategy);
     
-    // 시점 목록 추출
     vector<string> timestamps = getTimestamps(filePath);
     
     if (timestamps.size() < 2) {
-        // 시점이 하나뿐이면 전체를 초기 데이터로
         return { all, {} };
     }
     
-    // 첫 번째 시점 = 초기, 두 번째 시점 = 갱신
     string firstTimestamp = timestamps[0];
     string secondTimestamp = timestamps[1];
     

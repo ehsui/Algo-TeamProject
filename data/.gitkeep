@@ -1,0 +1,5 @@
+# This folder contains CSV files exported from DataCollector
+# Files:
+#   - youtube_latest.csv  (latest snapshot)
+#   - youtube_all.csv     (all snapshots for refresh testing)
+

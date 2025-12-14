@@ -1027,10 +1027,7 @@ private:
 } // namespace DataStructure
 
 // ============================================================================
-// 전역 네임스페이스에서 사용 가능하도록
+// 참고: 이름 충돌 방지를 위해 using 선언 제거
+// DataStructure::AVLTree, DataStructure::RankAVLTree 등으로 직접 사용
 // ============================================================================
-using DataStructure::AVLTree;
-using DataStructure::MaxAVLTree;
-using DataStructure::MinAVLTree;
-using DataStructure::RankAVLTree;
 

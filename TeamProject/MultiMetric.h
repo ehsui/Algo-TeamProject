@@ -51,16 +51,16 @@ enum class MetricType {
 /// 지표 이름 반환
 inline string getMetricName(MetricType type) {
     switch (type) {
-        case MetricType::DeltaViews:      return "Δ조회수";
-        case MetricType::DeltaLikes:      return "Δ좋아요";
-        case MetricType::DeltaComments:   return "Δ댓글";
-        case MetricType::AbsoluteViews:   return "조회수";
-        case MetricType::AbsoluteLikes:   return "좋아요";
-        case MetricType::AbsoluteComments:return "댓글";
-        case MetricType::Recency:         return "최근성";
-        case MetricType::Duration:        return "길이";
-        case MetricType::EngagementRate:  return "참여율";
-        case MetricType::CustomScore:     return "점수";
+        case MetricType::DeltaViews:      return "DeltaViews";
+        case MetricType::DeltaLikes:      return "DeltaLikes";
+        case MetricType::DeltaComments:   return "DeltaComments";
+        case MetricType::AbsoluteViews:   return "Views";
+        case MetricType::AbsoluteLikes:   return "Likes";
+        case MetricType::AbsoluteComments:return "Comments";
+        case MetricType::Recency:         return "Recency";
+        case MetricType::Duration:        return "Duration";
+        case MetricType::EngagementRate:  return "EngagementRate";
+        case MetricType::CustomScore:     return "CustomScore";
         default:                          return "Unknown";
     }
 }
@@ -210,7 +210,7 @@ inline void quicksort(vector<MultiMetricKey>& data, int left, int right) {
     
     while (i <= j) {
         while (data[i] < pivot) i++;
-        while (data[i] > pivot) j--;
+        while (data[j] > pivot) j--;  // 수정: data[i] → data[j]
         if (i <= j) {
             swap(data[i], data[j]);
             i++; j--;

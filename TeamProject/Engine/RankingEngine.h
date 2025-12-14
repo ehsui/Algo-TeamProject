@@ -249,6 +249,18 @@ public:
     }
 
     /**
+     * @brief 특정 순위의 영상 정보 조회 (포인터 반환)
+     * @param rank 순위 (1-indexed)
+     * @return 영상 정보 포인터, 없으면 nullptr
+     */
+    const Domain::VideoMetrics* getVideoAtRank(int rank) const {
+        if (rank < 1 || rank > static_cast<int>(videos_.size())) {
+            return nullptr;
+        }
+        return &videos_[rank - 1];
+    }
+
+    /**
      * @brief 현재 랭킹 결과를 콘솔에 출력
      */
     void printRanking(int count = 10) const {

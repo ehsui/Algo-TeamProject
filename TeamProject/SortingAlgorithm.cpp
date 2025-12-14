@@ -178,7 +178,7 @@ void RankEngine::build_AVLTree() {
     };
     
     // 새 트리로 초기화
-    avlTree = RankAVLTree<key, KeyComparator, KeyExtractor>(comp, extractor);
+    avlTree = DataStructure::RankAVLTree<key, KeyComparator, KeyExtractor>(comp, extractor);
     
     // 모든 요소 삽입 O(n log n)
     for (const auto& item : cur) {
@@ -360,7 +360,7 @@ void RankEngine::refresh(vector<Video>& newData) {
         case AlgorithmType::SelectThenSort:
             refresh_selectThenSort(newData);
             break;
-        case AlgorithmType::AVLTree:
+        case AlgorithmType::AVLTreeRank:
             refresh_AVLTree(newData);
             break;
         case AlgorithmType::OnlineInsert:
